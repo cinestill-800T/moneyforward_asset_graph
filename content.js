@@ -4,7 +4,7 @@ let globalChart = null; // Chart.js インスタンス保持用
 let lastFetchedData = null; // 最後に取得したデータを保持
 
 // ロード確認用ログ
-console.log('%c MoneyForward Asset Downloader v1.4 Loaded ', 'background: #2563eb; color: white; font-weight: bold;');
+console.log('%c MoneyForward Asset Downloader v1.4.1 Loaded ', 'background: #2563eb; color: white; font-weight: bold;');
 
 function createPanel() {
   const existing = document.getElementById('mf-extension-panel');
@@ -260,11 +260,11 @@ function showGraphModal() {
     modal.innerHTML = `
         <div class="mf-modal-content">
             <div class="mf-modal-header">
-                <div class="mf-modal-title">資産推移グラフ設定</div>
-                <div style="display:flex; gap:15px; align-items:center;">
-                    <div style="display:flex; align-items:center; gap:5px;">
-                        <span style="font-size:12px; font-weight:bold; color:#636e72;">期間:</span>
-                        <select id="mf-modal-range" class="mf-select" style="height:36px !important; line-height:36px !important; padding:0 10px !important; width:auto !important;">
+                <div class="mf-modal-title" style="margin-right: 20px; white-space: nowrap;">資産推移グラフ設定</div>
+                <div style="display:flex; gap:15px; align-items:center; flex-wrap: wrap;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <span style="font-size:12px; font-weight:bold; color:#636e72; white-space: nowrap;">期間:</span>
+                        <select id="mf-modal-range" class="mf-select" style="height:36px !important; line-height:36px !important; padding:0 25px 0 10px !important; width:auto !important; min-width: 100px;">
                             <option value="1">過去1年</option>
                             <option value="3">過去3年</option>
                             <option value="5">過去5年</option>
@@ -273,7 +273,7 @@ function showGraphModal() {
                         </select>
                     </div>
                     
-                    <div style="display:flex; align-items:center; gap:5px; background:#f3f4f6; padding:4px 10px; border-radius:6px;">
+                    <div style="display:flex; align-items:center; gap:5px; background:#f3f4f6; padding:4px 10px; border-radius:6px; white-space: nowrap;">
                         <input type="checkbox" id="mf-modal-filter-check" checked>
                         <label for="mf-modal-filter-check" style="font-size:12px; font-weight:bold; color:#2d3436; cursor:pointer; margin:0;">指定日のみ:</label>
                         <span style="font-size:12px;">毎月</span>
@@ -281,11 +281,11 @@ function showGraphModal() {
                         <span style="font-size:12px;">日</span>
                     </div>
 
-                    <button class="mf-modal-btn mf-btn-primary" id="mf-modal-fetch" style="padding: 6px 12px !important; font-size:12px !important; margin-top:0 !important;">
+                    <button class="mf-modal-btn mf-btn-primary" id="mf-modal-fetch" style="padding: 6px 12px !important; font-size:12px !important; margin-top:0 !important; white-space: nowrap;">
                         再取得・描画
                     </button>
                     
-                    <button class="mf-modal-btn mf-modal-btn-close" id="mf-modal-close" style="margin-left:10px;">×</button>
+                    <button class="mf-modal-btn mf-modal-btn-close" id="mf-modal-close" style="margin-left:auto;">×</button>
                 </div>
             </div>
             <div class="mf-modal-body">
