@@ -1,4 +1,4 @@
-/* モダン・テーマカスタマイズ対応スタイル v1.8 */
+/* モダン・テーマカスタマイズ対応スタイル v1.9 */
 :root {
   /* デフォルトカラーパレット (明るく爽やかなテーマ) */
   --mf-color-1: #80A1BA; /* メインブルー */
@@ -316,6 +316,7 @@
   justify-content: space-between !important;
   align-items: center !important;
   background: #f9f9f9 !important;
+  flex-shrink: 0 !important; /* ヘッダーの縮小を防ぐ */
 }
 
 .mf-modal-title {
@@ -328,6 +329,7 @@
   flex: 1 !important;
   padding: 20px !important;
   position: relative !important;
+  overflow-y: auto !important; /* 内部スクロールを有効化 */
 }
 
 .mf-modal-footer {
@@ -337,6 +339,7 @@
   justify-content: flex-end !important;
   gap: 12px !important;
   background: #fff !important;
+  flex-shrink: 0 !important; /* フッターの縮小を防ぐ */
 }
 
 .mf-modal-btn {
@@ -374,7 +377,9 @@
 .mf-settings-content {
     max-width: 500px !important;
     height: auto !important;
-    max-height: 80vh !important;
+    max-height: 80vh !important; /* 画面の80%を超えない */
+    display: flex !important;
+    flex-direction: column !important;
 }
 
 .mf-color-picker-row {
