@@ -1,23 +1,38 @@
 // グローバル変数
-const EXTENSION_VERSION = '1.8';
+const EXTENSION_VERSION = '1.9';
 let isProcessing = false;
 let globalChart = null; // Chart.js インスタンス保持用
 let lastFetchedData = null; // 最後に取得したデータを保持
 
-// デフォルトテーマ（爽やかブルー系）
-const DEFAULT_THEME = {
-    color1: '#80A1BA',
-    color2: '#91C4C3',
-    color3: '#B4DEBD',
-    color4: '#FFF7DD'
-};
+// カラープリセット定義
+const COLOR_PRESETS = [
+    { name: "爽やかブルー (標準)", colors: ['#80A1BA', '#91C4C3', '#B4DEBD', '#FFF7DD'] },
+    { name: "シックダーク", colors: ['#313647', '#435663', '#A3B087', '#FFF8D4'] },
+    { name: "フォレストグリーン", colors: ['#2C5F2D', '#97BC62', '#D4E09B', '#F1F7ED'] },
+    { name: "サンセットオレンジ", colors: ['#FF6F61', '#FF9A8B', '#FFC3A0', '#F6E4C6'] },
+    { name: "ラベンダー・ドリーム", colors: ['#6A5ACD', '#9370DB', '#E6E6FA', '#F8F8FF'] },
+    { name: "桜色 (チェリーブロッサム)", colors: ['#FFB7B2', '#FFDAC1', '#E2F0CB', '#FFFFD8'] },
+    { name: "オーシャンブリーズ", colors: ['#006994', '#00A8E8', '#74D0F1', '#E0FFFF'] },
+    { name: "ミッドナイト・パープル", colors: ['#301934', '#5D3F6A', '#8B6F9A', '#DCD0FF'] },
+    { name: "アースブラウン", colors: ['#5D4037', '#8D6E63', '#D7CCC8', '#EFEBE9'] },
+    { name: "クールグレー", colors: ['#37474F', '#607D8B', '#CFD8DC', '#ECEFF1'] },
+    { name: "ウォームベージュ", colors: ['#8D6E63', '#A1887F', '#D7CCC8', '#F5F5F5'] },
+    { name: "ミントフレッシュ", colors: ['#009688', '#4DB6AC', '#B2DFDB', '#E0F2F1'] },
+    { name: "ベリー・スムージー", colors: ['#880E4F', '#C2185B', '#F48FB1', '#FCE4EC'] },
+    { name: "ソーラーフレア", colors: ['#E65100', '#FF9800', '#FFCC80', '#FFF3E0'] },
+    { name: "ノルディック・ウィンター", colors: ['#455A64', '#78909C', '#B0BEC5', '#FFFFFF'] },
+    { name: "ロイヤルゴールド", colors: ['#B8860B', '#DAA520', '#EEE8AA', '#FFFFF0'] },
+    { name: "ティール＆コーラル", colors: ['#008080', '#FF7F50', '#FFA07A', '#E0FFFF'] },
+    { name: "モノクローム", colors: ['#212121', '#757575', '#BDBDBD', '#F5F5F5'] },
+    { name: "ネオンサイバー", colors: ['#3F51B5', '#FF4081', '#00E676', '#121212'] },
+    { name: "レトロポップ", colors: ['#D32F2F', '#FBC02D', '#388E3C', '#FFF9C4'] }
+];
 
-// シックダーク系プリセット
-const DARK_THEME = {
-    color1: '#313647',
-    color2: '#435663',
-    color3: '#A3B087',
-    color4: '#FFF8D4'
+const DEFAULT_THEME = {
+    color1: COLOR_PRESETS[0].colors[0],
+    color2: COLOR_PRESETS[0].colors[1],
+    color3: COLOR_PRESETS[0].colors[2],
+    color4: COLOR_PRESETS[0].colors[3]
 };
 
 // 現在のテーマ設定
@@ -61,10 +76,6 @@ function applyTheme(theme) {
     r.style.setProperty('--mf-color-2', theme.color2);
     r.style.setProperty('--mf-color-3', theme.color3);
     r.style.setProperty('--mf-color-4', theme.color4);
-    
-    // グラフのグラデーション用ライトカラー計算 (簡易的)
-    // 本来はRGB変換して計算するが、ここでは固定の調整値またはそのまま使用
-    // CSS側で opacity などを利用して調整しているため、JS側ではメイン変数を更新すればOK
 }
 
 function createPanel() {
@@ -197,6 +208,12 @@ function showSettingsModal() {
     const modal = document.createElement('div');
     modal.id = 'mf-settings-modal';
     modal.className = 'mf-modal-overlay';
+    
+    // プリセット選択肢のHTML生成
+    const presetOptions = COLOR_PRESETS.map((preset, index) => 
+        `<option value="${index}">${preset.name}</option>`
+    ).join('');
+
     modal.innerHTML = `
         <div class="mf-modal-content mf-settings-content" style="max-width:400px; height:auto;">
             <div class="mf-modal-header">
@@ -204,9 +221,12 @@ function showSettingsModal() {
                 <button class="mf-modal-btn mf-modal-btn-close" id="mf-settings-close">×</button>
             </div>
             <div class="mf-modal-body">
-                <div class="mf-preset-container">
-                    <button class="mf-preset-btn" id="mf-preset-default">標準 (ブルー)</button>
-                    <button class="mf-preset-btn" id="mf-preset-dark">シック (ダーク)</button>
+                <div style="margin-bottom:15px;">
+                    <label class="mf-label" style="margin-bottom:5px;">おすすめプリセット (20種)</label>
+                    <select id="mf-preset-select" class="mf-select" style="height:40px; line-height:40px;">
+                        <option value="" disabled selected>選択してください...</option>
+                        ${presetOptions}
+                    </select>
                 </div>
 
                 <div style="margin-bottom:15px; padding-bottom:15px; border-bottom:1px dashed #dfe6e9;">
@@ -242,12 +262,19 @@ function showSettingsModal() {
     const closeModal = () => modal.remove();
     document.getElementById('mf-settings-close').addEventListener('click', closeModal);
     
-    // プリセット適用
-    document.getElementById('mf-preset-default').addEventListener('click', () => {
-        setPickerValues(DEFAULT_THEME);
-    });
-    document.getElementById('mf-preset-dark').addEventListener('click', () => {
-        setPickerValues(DARK_THEME);
+    // プリセット選択時の動作
+    document.getElementById('mf-preset-select').addEventListener('change', (e) => {
+        const index = parseInt(e.target.value, 10);
+        if (!isNaN(index) && COLOR_PRESETS[index]) {
+            const preset = COLOR_PRESETS[index];
+            const theme = {
+                color1: preset.colors[0],
+                color2: preset.colors[1],
+                color3: preset.colors[2],
+                color4: preset.colors[3]
+            };
+            setPickerValues(theme);
+        }
     });
 
     // 一括貼り付けロジック
