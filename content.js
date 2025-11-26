@@ -1,5 +1,5 @@
 // グローバル変数
-const EXTENSION_VERSION = '1.9';
+const EXTENSION_VERSION = '1.10';
 let isProcessing = false;
 let globalChart = null; // Chart.js インスタンス保持用
 let lastFetchedData = null; // 最後に取得したデータを保持
@@ -78,6 +78,43 @@ function applyTheme(theme) {
     r.style.setProperty('--mf-color-4', theme.color4);
 }
 
+// --- キャッシュ管理ヘルパー ---
+function getCacheKey(dateStr) {
+    return `mf_cache_${dateStr}`;
+}
+
+function isCacheable(dateStr) {
+    const target = new Date(dateStr);
+    const now = new Date();
+    // 現在の年月より前であればキャッシュ可能（過去データは変動しない前提）
+    return (target.getFullYear() < now.getFullYear()) || 
+           (target.getFullYear() === now.getFullYear() && target.getMonth() < now.getMonth());
+}
+
+function getCacheSize() {
+    let size = 0;
+    let count = 0;
+    for(let key in localStorage) {
+        if(key.startsWith('mf_cache_')) {
+            size += localStorage.getItem(key).length;
+            count++;
+        }
+    }
+    return { size: (size / 1024).toFixed(1), count };
+}
+
+function clearCache() {
+    const keysToRemove = [];
+    for(let key in localStorage) {
+        if(key.startsWith('mf_cache_')) {
+            keysToRemove.push(key);
+        }
+    }
+    keysToRemove.forEach(key => localStorage.removeItem(key));
+    return keysToRemove.length;
+}
+
+
 function createPanel() {
   const existing = document.getElementById('mf-extension-panel');
   if (existing) existing.remove();
@@ -101,7 +138,7 @@ function createPanel() {
         <span>資産データ一括ダウンローダー <span style="font-size:10px; opacity:0.8; margin-left:5px;">v${EXTENSION_VERSION}</span></span>
       </div>
       <div class="mf-header-actions">
-          <div class="mf-header-btn" id="mf-btn-settings" title="テーマ設定">
+          <div class="mf-header-btn" id="mf-btn-settings" title="設定">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <circle cx="12" cy="12" r="3"></circle>
                 <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
@@ -214,41 +251,67 @@ function showSettingsModal() {
         `<option value="${index}">${preset.name}</option>`
     ).join('');
 
+    // キャッシュ情報の取得
+    const cacheInfo = getCacheSize();
+
     modal.innerHTML = `
         <div class="mf-modal-content mf-settings-content" style="max-width:400px; height:auto;">
             <div class="mf-modal-header">
-                <div class="mf-modal-title">テーマカラー設定</div>
+                <div class="mf-modal-title">設定</div>
                 <button class="mf-modal-btn mf-modal-btn-close" id="mf-settings-close">×</button>
             </div>
             <div class="mf-modal-body">
-                <div style="margin-bottom:15px;">
-                    <label class="mf-label" style="margin-bottom:5px;">おすすめプリセット (20種)</label>
-                    <select id="mf-preset-select" class="mf-select" style="height:40px; line-height:40px;">
-                        <option value="" disabled selected>選択してください...</option>
-                        ${presetOptions}
-                    </select>
+                <div style="margin-bottom:20px;">
+                    <label class="mf-label">テーマカラー</label>
+                    <div style="margin-bottom:15px;">
+                        <div style="font-size:12px; margin-bottom:5px; color:#636e72;">おすすめプリセット (20種)</div>
+                        <select id="mf-preset-select" class="mf-select" style="height:40px; line-height:40px;">
+                            <option value="" disabled selected>選択してください...</option>
+                            ${presetOptions}
+                        </select>
+                    </div>
+
+                    <div style="margin-bottom:15px; padding-bottom:15px; border-bottom:1px dashed #dfe6e9;">
+                        <div style="font-size:12px; margin-bottom:5px; color:#636e72;">カラーコード一括貼り付け (4行)</div>
+                        <textarea id="mf-color-paste" class="mf-input" style="height:60px; min-height:60px; padding:8px; font-family:monospace; font-size:12px; resize:vertical;" placeholder="#80A1BA&#10;#91C4C3&#10;#B4DEBD&#10;#FFF7DD"></textarea>
+                    </div>
+                    
+                    <div class="mf-color-picker-row">
+                        <span class="mf-color-picker-label">Color 1 (メイン)</span>
+                        <input type="color" class="mf-color-input" id="mf-color-1" value="${currentTheme.color1}">
+                    </div>
+                    <div class="mf-color-picker-row">
+                        <span class="mf-color-picker-label">Color 2 (サブ)</span>
+                        <input type="color" class="mf-color-input" id="mf-color-2" value="${currentTheme.color2}">
+                    </div>
+                    <div class="mf-color-picker-row">
+                        <span class="mf-color-picker-label">Color 3 (アクセント)</span>
+                        <input type="color" class="mf-color-input" id="mf-color-3" value="${currentTheme.color3}">
+                    </div>
+                    <div class="mf-color-picker-row">
+                        <span class="mf-color-picker-label">Color 4 (背景等)</span>
+                        <input type="color" class="mf-color-input" id="mf-color-4" value="${currentTheme.color4}">
+                    </div>
                 </div>
 
-                <div style="margin-bottom:15px; padding-bottom:15px; border-bottom:1px dashed #dfe6e9;">
-                    <div style="font-size:12px; font-weight:bold; margin-bottom:5px; color:#636e72;">カラーコード一括貼り付け (4行)</div>
-                    <textarea id="mf-color-paste" class="mf-input" style="height:80px; min-height:80px; padding:8px; font-family:monospace; font-size:12px; resize:vertical;" placeholder="#80A1BA&#10;#91C4C3&#10;#B4DEBD&#10;#FFF7DD"></textarea>
-                </div>
-                
-                <div class="mf-color-picker-row">
-                    <span class="mf-color-picker-label">Color 1 (メイン)</span>
-                    <input type="color" class="mf-color-input" id="mf-color-1" value="${currentTheme.color1}">
-                </div>
-                <div class="mf-color-picker-row">
-                    <span class="mf-color-picker-label">Color 2 (サブ)</span>
-                    <input type="color" class="mf-color-input" id="mf-color-2" value="${currentTheme.color2}">
-                </div>
-                <div class="mf-color-picker-row">
-                    <span class="mf-color-picker-label">Color 3 (アクセント)</span>
-                    <input type="color" class="mf-color-input" id="mf-color-3" value="${currentTheme.color3}">
-                </div>
-                <div class="mf-color-picker-row">
-                    <span class="mf-color-picker-label">Color 4 (背景等)</span>
-                    <input type="color" class="mf-color-input" id="mf-color-4" value="${currentTheme.color4}">
+                <div style="margin-top:20px; padding-top:20px; border-top:2px solid #f3f4f6;">
+                    <label class="mf-label">データキャッシュ</label>
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                        <div style="font-size:12px; color:#636e72;">
+                            過去のデータをブラウザに保存し、<br>次回の読み込みを高速化します。
+                        </div>
+                        <div style="text-align:right; font-size:12px; font-weight:bold;">
+                            <span id="mf-cache-count">${cacheInfo.count}</span>ファイル<br>
+                            <span id="mf-cache-size">${cacheInfo.size}</span> KB
+                        </div>
+                    </div>
+                    <button id="mf-clear-cache" class="mf-btn mf-btn-secondary" style="height:40px; font-size:12px; border-color:#e74c3c; color:#e74c3c;">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:5px;">
+                            <path d="M3 6h18"></path>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                        </svg>
+                        キャッシュをすべて削除
+                    </button>
                 </div>
             </div>
             <div class="mf-modal-footer">
@@ -293,6 +356,17 @@ function showSettingsModal() {
         }
     });
 
+    // キャッシュ削除
+    document.getElementById('mf-clear-cache').addEventListener('click', () => {
+        if(confirm('保存されたキャッシュデータをすべて削除しますか？\n次回取得時は再度通信が発生します。')) {
+            const count = clearCache();
+            alert(`${count}件のキャッシュを削除しました。`);
+            // 表示更新
+            document.getElementById('mf-cache-count').textContent = '0';
+            document.getElementById('mf-cache-size').textContent = '0.0';
+        }
+    });
+
     function setPickerValues(theme) {
         document.getElementById('mf-color-1').value = theme.color1;
         document.getElementById('mf-color-2').value = theme.color2;
@@ -334,9 +408,12 @@ async function fetchData(years, onProgress) {
     
     const tasks = [];
     for (let i = 0; i < totalMonths; i++) {
+        const dateStr = formatDate(targetDate);
         tasks.push({
-            dateStr: formatDate(targetDate),
-            url: `https://moneyforward.com/bs/history/list/${formatDate(targetDate)}/monthly/csv`
+            dateStr: dateStr,
+            url: `https://moneyforward.com/bs/history/list/${dateStr}/monthly/csv`,
+            cacheKey: getCacheKey(dateStr),
+            isCacheable: isCacheable(dateStr)
         });
         targetDate = getPrevMonthEnd(targetDate);
     }
@@ -352,12 +429,31 @@ async function fetchData(years, onProgress) {
 
         const promises = batch.map(async (task) => {
             try {
+                // キャッシュチェック
+                if (task.isCacheable) {
+                    const cachedCSV = localStorage.getItem(task.cacheKey);
+                    if (cachedCSV) {
+                        const rows = parseCSV(cachedCSV);
+                        if (rows.length > 1) return rows;
+                    }
+                }
+
+                // 通信取得
                 const res = await fetch(task.url);
                 if (!res.ok) return null;
                 const blob = await res.blob();
                 const text = await readBlobAsText(blob, 'Shift_JIS');
+                
                 const rows = parseCSV(text);
-                if (rows.length > 1) return rows; 
+                if (rows.length > 1) {
+                    // キャッシュ保存
+                    if (task.isCacheable) {
+                        try {
+                            localStorage.setItem(task.cacheKey, text);
+                        } catch(e) { console.warn('Cache storage failed (quota exceeded?)', e); }
+                    }
+                    return rows;
+                }
                 return null;
             } catch (e) {
                 return null;
@@ -373,7 +469,8 @@ async function fetchData(years, onProgress) {
             }
         });
 
-        await new Promise(r => setTimeout(r, 500));
+        // 負荷軽減のため、少し待機（キャッシュヒット時は高速になるが、念のため）
+        await new Promise(r => setTimeout(r, 50));
     }
 
     if (allCsvRows.length === 0) {
