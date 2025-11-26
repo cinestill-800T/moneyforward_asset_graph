@@ -1,17 +1,16 @@
-/* モダン・グラデーションテーマのスタイル */
+/* モダン・テーマカスタマイズ対応スタイル v1.8 */
 :root {
-  /* 指定されたカラーパレット */
-  --mf-color-1: #845ec2;
-  --mf-color-2: #d65db1;
-  --mf-color-3: #ff6f91;
-  --mf-color-4: #ff9671;
-  --mf-color-5: #ffc75f;
-  --mf-color-6: #f9f871;
+  /* デフォルトカラーパレット (明るく爽やかなテーマ) */
+  --mf-color-1: #80A1BA; /* メインブルー */
+  --mf-color-2: #91C4C3; /* アクア */
+  --mf-color-3: #B4DEBD; /* ペールグリーン */
+  --mf-color-4: #FFF7DD; /* クリーム */
   
-  --mf-text-main: #2d3436;
+  /* テキストカラー等は自動計算できないため固定または変数依存 */
+  --mf-text-main: #313647; /* テキストは視認性のためダークグレー維持 */
   --mf-text-sub: #636e72;
   --mf-border: #dfe6e9;
-  --mf-shadow: 0 10px 20px rgba(132, 94, 194, 0.15), 0 6px 6px rgba(0, 0, 0, 0.05);
+  --mf-shadow: 0 10px 25px rgba(0, 0, 0, 0.1), 0 5px 10px rgba(0, 0, 0, 0.05);
 }
 
 #mf-extension-panel {
@@ -23,7 +22,7 @@
   box-shadow: var(--mf-shadow) !important;
   border-radius: 16px !important;
   font-family: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif !important;
-  z-index: 2147483647 !important; /* 最大値 */
+  z-index: 2147483647 !important;
   border: 1px solid rgba(255, 255, 255, 0.5) !important;
   font-size: 14px !important;
   color: var(--mf-text-main) !important;
@@ -38,14 +37,16 @@
 }
 
 #mf-extension-header {
-  background: linear-gradient(135deg, var(--mf-color-1), var(--mf-color-2), var(--mf-color-3)) !important;
+  /* color-1 -> color-2 グラデーション */
+  background: linear-gradient(135deg, var(--mf-color-1) 0%, var(--mf-color-2) 100%) !important;
   padding: 16px 20px !important;
   display: flex !important;
   justify-content: space-between !important;
   align-items: center !important;
-  color: white !important;
+  color: #fff !important; /* ヘッダー文字は白固定 */
   border-top-left-radius: 16px !important;
   border-top-right-radius: 16px !important;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1) !important;
 }
 
 .mf-title {
@@ -55,36 +56,44 @@
   align-items: center !important;
   gap: 10px !important;
   letter-spacing: 0.02em !important;
-  color: white !important;
+  color: #fff !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.1) !important;
 }
 
 .mf-icon-wrapper svg path {
-    stroke: white !important;
+    stroke: #fff !important;
+    filter: drop-shadow(0 1px 2px rgba(0,0,0,0.1));
 }
 
-#mf-extension-close {
+.mf-header-actions {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+}
+
+.mf-header-btn {
   cursor: pointer !important;
   color: rgba(255, 255, 255, 0.8) !important;
-  font-size: 22px !important;
+  font-size: 18px !important;
   line-height: 1 !important;
-  padding: 4px !important;
+  padding: 6px !important;
   border-radius: 50% !important;
-  transition: background 0.2s, transform 0.2s !important;
-  width: 24px !important;
-  height: 24px !important;
+  transition: all 0.2s !important;
+  width: 28px !important;
+  height: 28px !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
 }
-#mf-extension-close:hover {
+.mf-header-btn:hover {
   background-color: rgba(255, 255, 255, 0.2) !important;
-  color: white !important;
+  color: #fff !important;
   transform: scale(1.1) !important;
 }
 
 #mf-extension-body {
   padding: 24px !important;
-  background-color: #fdfdfd !important;
+  background-color: var(--mf-color-4) !important; /* 背景に color-4 (クリーム) を使用 */
   border-bottom-left-radius: 16px !important;
   border-bottom-right-radius: 16px !important;
 }
@@ -95,7 +104,11 @@
   border-radius: 12px !important;
   padding: 20px !important;
   margin-bottom: 20px !important;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.02) !important;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.02) !important;
+  transition: transform 0.2s !important;
+}
+.mf-section:hover {
+    box-shadow: 0 6px 16px rgba(0,0,0,0.05) !important;
 }
 
 .mf-section:last-child {
@@ -106,13 +119,10 @@
   display: block !important;
   font-size: 12px !important;
   font-weight: 700 !important;
-  color: var(--mf-text-sub) !important;
+  color: var(--mf-color-1) !important; /* ラベルはメインカラー */
   margin-bottom: 12px !important;
   text-transform: uppercase !important;
   letter-spacing: 0.05em !important;
-  background: linear-gradient(90deg, var(--mf-color-1), var(--mf-color-2));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
 }
 
 .mf-control-group {
@@ -121,11 +131,10 @@
   align-items: center !important;
 }
 
-/* Selectbox Bug Fix: appearance:none + custom arrow */
 .mf-select {
   width: 100% !important;
-  height: 45px !important; /* 高さを強制 */
-  padding: 0 14px !important; /* 上下パディングを0にしてline-heightで中央揃え */
+  height: 45px !important;
+  padding: 0 14px !important;
   border: 1px solid var(--mf-border) !important;
   border-radius: 8px !important;
   font-size: 14px !important;
@@ -134,7 +143,7 @@
   background-color: #fff !important;
   transition: all 0.2s !important;
   outline: none !important;
-  appearance: none !important; /* Remove default arrow */
+  appearance: none !important;
   -webkit-appearance: none !important;
   -moz-appearance: none !important;
   background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23636e72%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E') !important;
@@ -165,7 +174,7 @@
 
 .mf-select:focus, .mf-input:focus {
   border-color: var(--mf-color-2) !important;
-  box-shadow: 0 0 0 3px rgba(214, 93, 177, 0.1) !important;
+  box-shadow: 0 0 0 3px rgba(145, 196, 195, 0.3) !important;
 }
 
 .mf-input-short {
@@ -186,7 +195,7 @@
   font-size: 14px !important;
   font-weight: 700 !important;
   cursor: pointer !important;
-  transition: all 0.2s !important;
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
   margin-top: 12px !important;
   gap: 8px !important;
   position: relative !important;
@@ -195,39 +204,41 @@
   text-decoration: none !important;
 }
 
+/* プライマリ: color-1 -> color-2 グラデーション */
 .mf-btn-primary {
-  background: linear-gradient(90deg, var(--mf-color-3), var(--mf-color-4)) !important;
-  color: white !important;
-  box-shadow: 0 4px 10px rgba(255, 111, 145, 0.3) !important;
+  background: linear-gradient(135deg, var(--mf-color-1) 0%, var(--mf-color-2) 100%) !important;
+  color: #fff !important;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15) !important;
 }
 .mf-btn-primary:hover {
-  filter: brightness(1.05) !important;
-  transform: translateY(-1px) !important;
-  box-shadow: 0 6px 12px rgba(255, 111, 145, 0.4) !important;
+  filter: brightness(1.05);
+  transform: translateY(-2px) !important;
+  box-shadow: 0 6px 15px rgba(0, 0, 0, 0.2) !important;
 }
 .mf-btn-primary:active {
   transform: translateY(0) !important;
 }
 
+/* セカンダリ */
 .mf-btn-secondary {
   background-color: #fff !important;
   color: var(--mf-color-1) !important;
   border: 1px solid var(--mf-color-1) !important;
 }
 .mf-btn-secondary:hover {
-  background-color: #f8f4ff !important;
-  box-shadow: 0 2px 8px rgba(132, 94, 194, 0.15) !important;
+  background-color: #f9f9f9 !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05) !important;
 }
 
+/* アクセント: color-3 (グリーン) -> color-2 グラデーション */
 .mf-btn-accent {
-  background: linear-gradient(90deg, var(--mf-color-1), var(--mf-color-2)) !important;
-  color: white !important;
-  box-shadow: 0 4px 10px rgba(132, 94, 194, 0.3) !important;
-  /* デフォルトは非表示だがJSでflexにする */
+  background: linear-gradient(135deg, var(--mf-color-3) 0%, var(--mf-color-2) 100%) !important;
+  color: #fff !important;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15) !important;
 }
 .mf-btn-accent:hover {
   filter: brightness(1.05) !important;
-  transform: translateY(-1px) !important;
+  transform: translateY(-2px) !important;
 }
 
 /* プログレスバー */
@@ -246,14 +257,14 @@
 
 .mf-progress-bg {
   height: 8px !important;
-  background-color: #f1f2f6 !important;
+  background-color: #e0e0e0 !important;
   border-radius: 4px !important;
   overflow: hidden !important;
 }
 
 .mf-progress-fill {
   height: 100% !important;
-  background: linear-gradient(90deg, var(--mf-color-6), var(--mf-color-5), var(--mf-color-4)) !important;
+  background: linear-gradient(90deg, var(--mf-color-3) 0%, var(--mf-color-2) 100%) !important;
   width: 0% !important;
   transition: width 0.3s ease !important;
   border-radius: 4px !important;
@@ -267,7 +278,7 @@
   width: 100vw !important;
   height: 100vh !important;
   background-color: rgba(0, 0, 0, 0.5) !important;
-  backdrop-filter: blur(3px) !important;
+  backdrop-filter: blur(4px) !important;
   z-index: 2147483647 !important;
   display: flex !important;
   justify-content: center !important;
@@ -286,7 +297,7 @@
   max-width: 900px !important;
   height: 80vh !important;
   border-radius: 16px !important;
-  box-shadow: 0 20px 50px rgba(0,0,0,0.3) !important;
+  box-shadow: 0 25px 60px rgba(0,0,0,0.2) !important;
   display: flex !important;
   flex-direction: column !important;
   overflow: hidden !important;
@@ -304,7 +315,7 @@
   display: flex !important;
   justify-content: space-between !important;
   align-items: center !important;
-  background: #f9fafb !important;
+  background: #f9f9f9 !important;
 }
 
 .mf-modal-title {
@@ -338,6 +349,7 @@
   display: flex !important;
   align-items: center !important;
   gap: 8px !important;
+  transition: all 0.2s !important;
 }
 
 .mf-modal-btn-close {
@@ -349,9 +361,64 @@
 }
 
 .mf-modal-btn-copy {
-  background: var(--mf-color-1) !important;
-  color: white !important;
+  background: linear-gradient(135deg, var(--mf-color-1) 0%, var(--mf-color-2) 100%) !important;
+  color: #fff !important;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15) !important;
 }
 .mf-modal-btn-copy:hover {
-  background: var(--mf-color-2) !important;
+  filter: brightness(1.05);
+  transform: translateY(-1px) !important;
+}
+
+/* --- 設定モーダル (New) --- */
+.mf-settings-content {
+    max-width: 500px !important;
+    height: auto !important;
+    max-height: 80vh !important;
+}
+
+.mf-color-picker-row {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    margin-bottom: 15px !important;
+    padding: 10px !important;
+    background: #f8f9fa !important;
+    border-radius: 8px !important;
+}
+
+.mf-color-picker-label {
+    font-weight: bold !important;
+    color: var(--mf-text-main) !important;
+    font-size: 14px !important;
+}
+
+.mf-color-input {
+    border: none !important;
+    width: 50px !important;
+    height: 30px !important;
+    cursor: pointer !important;
+    padding: 0 !important;
+    background: none !important;
+}
+
+.mf-preset-container {
+    display: flex !important;
+    gap: 10px !important;
+    margin-bottom: 20px !important;
+    flex-wrap: wrap !important;
+}
+
+.mf-preset-btn {
+    padding: 8px 16px !important;
+    border: 1px solid var(--mf-border) !important;
+    border-radius: 20px !important;
+    background: #fff !important;
+    cursor: pointer !important;
+    font-size: 12px !important;
+    transition: all 0.2s !important;
+}
+.mf-preset-btn:hover {
+    background: #f0f0f0 !important;
+    transform: translateY(-1px) !important;
 }
