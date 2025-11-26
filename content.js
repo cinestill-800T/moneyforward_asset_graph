@@ -4,7 +4,7 @@ let globalChart = null; // Chart.js インスタンス保持用
 let lastFetchedData = null; // 最後に取得したデータを保持
 
 // ロード確認用ログ
-console.log('%c MoneyForward Asset Downloader v1.2 Loaded ', 'background: #2563eb; color: white; font-weight: bold;');
+console.log('%c MoneyForward Asset Downloader v1.4 Loaded ', 'background: #2563eb; color: white; font-weight: bold;');
 
 function createPanel() {
   const existing = document.getElementById('mf-extension-panel');
@@ -52,6 +52,27 @@ function createPanel() {
             </svg>
             全日次データをCSV保存
         </button>
+
+        <div style="margin-top: 15px; padding-top: 15px; border-top: 1px dashed #dfe6e9;">
+            <div class="mf-control-group" style="margin-bottom: 10px; justify-content: space-between;">
+                <span style="font-size:13px; font-weight:bold; color:#636e72;">指定日のみ抽出:</span>
+                <div style="display:flex; align-items:center; gap:5px;">
+                    <span style="font-size:12px;">毎月</span>
+                    <input type="number" id="mf-day-input" value="25" min="1" max="31" class="mf-input mf-input-short">
+                    <span style="font-size:12px;">日</span>
+                </div>
+            </div>
+            <button id="btn-download-specific-day" class="mf-btn mf-btn-secondary">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                    <line x1="16" y1="2" x2="16" y2="6" />
+                    <line x1="8" y1="2" x2="8" y2="6" />
+                    <line x1="3" y1="10" x2="21" y2="10" />
+                    <circle cx="12" cy="15" r="2" fill="currentColor" stroke="none"/>
+                </svg>
+                指定日のみ抽出してCSV保存
+            </button>
+        </div>
       </div>
 
       <div class="mf-section">
@@ -84,8 +105,7 @@ function createPanel() {
   });
 
   document.getElementById('btn-download-all').addEventListener('click', () => handleDownload(false));
-  // 特定日CSVボタンは削除し、グラフ機能に統合するか、またはシンプルにするために今回は削除（要望によりグラフ重視）
-  // もし必要なら復活させるが、グラフモーダルからCSVエクスポートも可能にする
+  document.getElementById('btn-download-specific-day').addEventListener('click', () => handleDownload(true));
   document.getElementById('btn-show-graph').addEventListener('click', showGraphModal);
 }
 
@@ -102,7 +122,6 @@ function updateStatus(text, progress = 0) {
 // ==========================================
 // データ取得ロジック (共通)
 // ==========================================
-// UI進捗バー更新用コールバックを受け取る
 async function fetchData(years, onProgress) {
   if (isProcessing) return null;
   isProcessing = true;
@@ -177,7 +196,17 @@ async function fetchData(years, onProgress) {
 }
 
 // パネルからのダウンロード実行
-async function handleDownload() {
+async function handleDownload(filterByDay = false) {
+    let targetDay = null;
+    if (filterByDay) {
+        const dayInput = document.getElementById('mf-day-input');
+        targetDay = parseInt(dayInput.value, 10);
+        if (isNaN(targetDay) || targetDay < 1 || targetDay > 31) {
+            alert('1〜31の日付を入力してください');
+            return;
+        }
+    }
+
     const yearSelect = document.getElementById('mf-year-select');
     updateStatus('データ取得中...', 5);
     
@@ -190,10 +219,29 @@ async function handleDownload() {
         return;
     }
 
+    let rows = data.rows;
+    if (filterByDay) {
+        rows = rows.filter(r => {
+            const d = new Date(r[0]);
+            return !isNaN(d.getTime()) && d.getDate() === targetDay;
+        });
+    }
+
+    if (rows.length === 0) {
+        updateStatus('対象データなし', 0);
+        alert('指定した日付のデータが見つかりませんでした');
+        return;
+    }
+
     updateStatus('CSV生成中...', 100);
-    const finalCsv = generateCSV([data.headers, ...data.rows]);
-    downloadCSV(finalCsv, `moneyforward_assets_full_${formatDate(new Date())}.csv`);
-    updateStatus(`完了 (${data.rows.length}件)`, 100);
+    const finalCsv = generateCSV([data.headers, ...rows]);
+    
+    const fileName = filterByDay 
+        ? `moneyforward_daily_${targetDay}_${formatDate(new Date())}.csv`
+        : `moneyforward_assets_history_full_${formatDate(new Date())}.csv`;
+
+    downloadCSV(finalCsv, fileName);
+    updateStatus(`完了 (${rows.length}件)`, 100);
     
     // キャッシュ更新
     lastFetchedData = data;
@@ -204,11 +252,9 @@ async function handleDownload() {
 // グラフモーダル & 内部ロジック
 // ==========================================
 function showGraphModal() {
-    // 既存モーダル削除
     const existingModal = document.querySelector('.mf-modal-overlay');
     if (existingModal) existingModal.remove();
 
-    // モーダルHTML
     const modal = document.createElement('div');
     modal.className = 'mf-modal-overlay';
     modal.innerHTML = `
@@ -216,7 +262,6 @@ function showGraphModal() {
             <div class="mf-modal-header">
                 <div class="mf-modal-title">資産推移グラフ設定</div>
                 <div style="display:flex; gap:15px; align-items:center;">
-                    <!-- 条件設定エリア -->
                     <div style="display:flex; align-items:center; gap:5px;">
                         <span style="font-size:12px; font-weight:bold; color:#636e72;">期間:</span>
                         <select id="mf-modal-range" class="mf-select" style="height:36px !important; line-height:36px !important; padding:0 10px !important; width:auto !important;">
@@ -258,11 +303,27 @@ function showGraphModal() {
                     <input type="checkbox" id="mf-chart-stack-check">
                     <label for="mf-chart-stack-check" style="font-size:12px; cursor:pointer;">内訳を積み上げ表示する</label>
                 </div>
+                <button class="mf-modal-btn mf-modal-btn-close" id="mf-download-csv">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                        <polyline points="7 10 12 15 17 10" />
+                        <line x1="12" y1="15" x2="12" y2="3" />
+                    </svg>
+                   CSV保存
+                </button>
                 <button class="mf-modal-btn mf-modal-btn-close" id="mf-copy-data">
-                   📄 CSVコピー
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                    </svg>
+                   CSVコピー
                 </button>
                 <button class="mf-modal-btn mf-modal-btn-copy" id="mf-copy-image">
-                   📷 画像コピー
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+                        <circle cx="12" cy="13" r="4"></circle>
+                    </svg>
+                   画像コピー
                 </button>
             </div>
         </div>
@@ -296,40 +357,46 @@ function showGraphModal() {
         }
     });
 
-    // フィルタ変更時即時反映（データがあれば）
     document.getElementById('mf-modal-filter-check').addEventListener('change', updateGraph);
     document.getElementById('mf-modal-day').addEventListener('change', updateGraph);
     document.getElementById('mf-chart-stack-check').addEventListener('change', updateGraph);
 
-    // データコピー
-    document.getElementById('mf-copy-data').addEventListener('click', () => {
-        if(!globalChart || !globalChart.data.labels) return;
-        // グラフに表示されているデータをコピーしたいが、簡易的に lastFetchedData をコピー
-        alert('全データをクリップボードにコピーします(Excel用)');
-        copyGraphData();
-    });
+    document.getElementById('mf-copy-data').addEventListener('click', copyGraphData);
     document.getElementById('mf-copy-image').addEventListener('click', copyGraphImage);
+    
+    // 新規追加: グラフデータをCSV保存
+    document.getElementById('mf-download-csv').addEventListener('click', () => {
+        if (!globalChart || !lastFetchedData) return;
+        
+        // 現在のフィルタ条件を適用してデータを取得
+        const filteredRows = getFilteredRows();
+        if (!filteredRows || filteredRows.length === 0) {
+            alert('データがありません');
+            return;
+        }
+        
+        // グラフ用にはreverseしているので、CSV用には降順（新しい順）に戻すのが一般的だが
+        // グラフ表示と合わせるなら昇順（古い順）。ここでは扱いやすい「新しい順（降順）」に戻して保存する
+        const csvRows = [...filteredRows].reverse();
+        
+        const finalCsv = generateCSV([lastFetchedData.headers, ...csvRows]);
+        downloadCSV(finalCsv, `moneyforward_graph_data_${formatDate(new Date())}.csv`);
+    });
 
-    // 初期表示
     if (lastFetchedData) {
         updateGraph();
     } else {
         document.getElementById('mf-no-data-msg').style.display = 'block';
-        // 自動で初回取得しても良いが、ユーザー操作に委ねる
     }
 }
 
-function updateGraph() {
-    if (!lastFetchedData) return;
-    document.getElementById('mf-no-data-msg').style.display = 'none';
-
+// フィルタリングロジックを共通化
+function getFilteredRows() {
+    if (!lastFetchedData) return [];
     const filterCheck = document.getElementById('mf-modal-filter-check').checked;
     const targetDay = parseInt(document.getElementById('mf-modal-day').value, 10);
-    const isStacked = document.getElementById('mf-chart-stack-check').checked;
 
-    // フィルタリング
-    // lastFetchedData.rows は「新しい順」
-    let rows = [...lastFetchedData.rows];
+    let rows = [...lastFetchedData.rows]; // 新しい順
     
     if (filterCheck && !isNaN(targetDay)) {
         rows = rows.filter(r => {
@@ -337,23 +404,31 @@ function updateGraph() {
             return !isNaN(d.getTime()) && d.getDate() === targetDay;
         });
     }
+    
+    // グラフ表示用に古い順にソートして返す
+    return rows.reverse();
+}
+
+function updateGraph() {
+    if (!lastFetchedData) return;
+    document.getElementById('mf-no-data-msg').style.display = 'none';
+
+    const rows = getFilteredRows();
 
     if (rows.length === 0) {
+        // データがない場合はグラフをクリア
+        if (globalChart) globalChart.destroy();
         alert('指定条件に一致するデータがありません');
         return;
     }
 
-    // グラフ用に古い順にソート
-    rows.reverse();
-
     const headers = lastFetchedData.headers;
     const labels = rows.map(r => r[0]);
+    const isStacked = document.getElementById('mf-chart-stack-check').checked;
     
-    // データセット作成
     const datasets = [];
     
     if (isStacked) {
-        // 積み上げグラフ（内訳表示）
         const colors = ['#2563eb', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6', '#ec4899'];
         for(let i = 2; i < headers.length; i++) {
             if(headers[i] === '詳細') continue;
@@ -368,13 +443,11 @@ function updateGraph() {
             });
         }
     } else {
-        // 合計のみ（折れ線）
-        // headers[1] が「合計」と想定
         datasets.push({
             label: '資産合計',
             data: rows.map(r => parseInt(r[1] || 0, 10)),
             backgroundColor: 'rgba(37, 99, 235, 0.1)',
-            borderColor: '#2563eb', // 青
+            borderColor: '#2563eb', 
             borderWidth: 3,
             fill: true,
             pointRadius: rows.length > 50 ? 0 : 4,
@@ -399,7 +472,7 @@ function drawChartCanvas(labels, datasets, isStacked) {
                 mode: 'index',
                 intersect: false,
             },
-            stacked: isStacked, // 積み上げ設定
+            stacked: isStacked,
             plugins: {
                 title: { display: true, text: isStacked ? '資産推移（内訳）' : '資産推移（合計）', font: { size: 16 } },
                 tooltip: {
@@ -492,6 +565,7 @@ function downloadCSV(csv, filename) {
 }
 function copyGraphImage() {
     const canvas = document.getElementById('mf-chart');
+    if(!canvas) return;
     canvas.toBlob(blob => {
         const item = new ClipboardItem({ 'image/png': blob });
         navigator.clipboard.write([item]).then(() => alert('画像をコピーしました')).catch(e=>alert('失敗しました'));
@@ -499,8 +573,12 @@ function copyGraphImage() {
 }
 function copyGraphData() {
     if (!lastFetchedData) return;
+    // フィルタ適用済みのデータをコピー
+    const filteredRows = getFilteredRows().reverse(); // クリップボード用は降順（新しい順）が見やすい
+    if(filteredRows.length === 0) { alert('データがありません'); return; }
+    
     const headers = lastFetchedData.headers.join('\t');
-    const body = lastFetchedData.rows.map(row => row.join('\t')).join('\n');
+    const body = filteredRows.map(row => row.join('\t')).join('\n');
     navigator.clipboard.writeText(`${headers}\n${body}`).then(()=>alert('データをコピーしました')).catch(e=>alert('失敗しました'));
 }
 
