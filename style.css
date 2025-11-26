@@ -15,20 +15,21 @@
 }
 
 #mf-extension-panel {
-  position: fixed;
-  bottom: 24px;
-  right: 24px;
-  width: 380px; /* 少し幅を広げる */
-  background-color: #ffffff;
-  box-shadow: var(--mf-shadow);
-  border-radius: 16px;
-  font-family: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif;
-  z-index: 99999;
-  /* overflow: hidden; ドロップダウンの表示を妨げないよう削除またはautoに */
-  border: 1px solid rgba(255, 255, 255, 0.5);
-  font-size: 14px;
-  color: var(--mf-text-main);
-  animation: mf-slide-in 0.4s cubic-bezier(0.19, 1, 0.22, 1);
+  position: fixed !important;
+  bottom: 24px !important;
+  right: 24px !important;
+  width: 380px !important;
+  background-color: #ffffff !important;
+  box-shadow: var(--mf-shadow) !important;
+  border-radius: 16px !important;
+  font-family: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif !important;
+  z-index: 2147483647 !important; /* 最大値 */
+  border: 1px solid rgba(255, 255, 255, 0.5) !important;
+  font-size: 14px !important;
+  color: var(--mf-text-main) !important;
+  animation: mf-slide-in 0.4s cubic-bezier(0.19, 1, 0.22, 1) !important;
+  box-sizing: border-box !important;
+  display: block !important;
 }
 
 @keyframes mf-slide-in {
@@ -37,184 +38,320 @@
 }
 
 #mf-extension-header {
-  /* グラデーション背景 */
-  background: linear-gradient(135deg, var(--mf-color-1), var(--mf-color-2), var(--mf-color-3));
-  padding: 16px 20px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  color: white;
-  border-top-left-radius: 16px;
-  border-top-right-radius: 16px;
+  background: linear-gradient(135deg, var(--mf-color-1), var(--mf-color-2), var(--mf-color-3)) !important;
+  padding: 16px 20px !important;
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  color: white !important;
+  border-top-left-radius: 16px !important;
+  border-top-right-radius: 16px !important;
 }
 
 .mf-title {
-  font-weight: 700;
-  font-size: 16px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  letter-spacing: 0.02em;
+  font-weight: 700 !important;
+  font-size: 16px !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  letter-spacing: 0.02em !important;
+  color: white !important;
 }
 
 .mf-icon-wrapper svg path {
-    stroke: white; /* アイコンは白抜き */
+    stroke: white !important;
 }
 
 #mf-extension-close {
-  cursor: pointer;
-  color: rgba(255, 255, 255, 0.8);
-  font-size: 22px;
-  line-height: 1;
-  padding: 4px;
-  border-radius: 50%;
-  transition: background 0.2s, transform 0.2s;
-  width: 24px;
-  height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  cursor: pointer !important;
+  color: rgba(255, 255, 255, 0.8) !important;
+  font-size: 22px !important;
+  line-height: 1 !important;
+  padding: 4px !important;
+  border-radius: 50% !important;
+  transition: background 0.2s, transform 0.2s !important;
+  width: 24px !important;
+  height: 24px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
 }
 #mf-extension-close:hover {
-  background-color: rgba(255, 255, 255, 0.2);
-  color: white;
-  transform: scale(1.1);
+  background-color: rgba(255, 255, 255, 0.2) !important;
+  color: white !important;
+  transform: scale(1.1) !important;
 }
 
 #mf-extension-body {
-  padding: 24px;
-  background-color: #fdfdfd;
-  border-bottom-left-radius: 16px;
-  border-bottom-right-radius: 16px;
+  padding: 24px !important;
+  background-color: #fdfdfd !important;
+  border-bottom-left-radius: 16px !important;
+  border-bottom-right-radius: 16px !important;
 }
 
 .mf-section {
-  background: #fff;
-  border: 1px solid var(--mf-border);
-  border-radius: 12px;
-  padding: 20px; /* パディングを少し増やす */
-  margin-bottom: 20px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+  background: #fff !important;
+  border: 1px solid var(--mf-border) !important;
+  border-radius: 12px !important;
+  padding: 20px !important;
+  margin-bottom: 20px !important;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.02) !important;
 }
 
 .mf-section:last-child {
-  margin-bottom: 0;
+  margin-bottom: 0 !important;
 }
 
 .mf-label {
-  display: block;
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--mf-text-sub);
-  margin-bottom: 12px; /* 余白を広げる */
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  /* グラデーションテキスト */
+  display: block !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  color: var(--mf-text-sub) !important;
+  margin-bottom: 12px !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
   background: linear-gradient(90deg, var(--mf-color-1), var(--mf-color-2));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
 .mf-control-group {
-  display: flex;
-  gap: 10px;
-  align-items: center;
+  display: flex !important;
+  gap: 10px !important;
+  align-items: center !important;
 }
 
-.mf-select, .mf-input {
-  width: 100%;
-  padding: 12px 14px; /* パディングを増やして高さを確保 */
-  border: 1px solid var(--mf-border);
-  border-radius: 8px;
-  font-size: 14px;
-  line-height: 1.5; /* 行間を確保 */
-  color: var(--mf-text-main);
-  background-color: #fff;
-  transition: all 0.2s;
-  outline: none;
-  appearance: auto; /* ブラウザ標準の矢印を表示させる（見切れ防止） */
+/* Selectbox Bug Fix: appearance:none + custom arrow */
+.mf-select {
+  width: 100% !important;
+  height: 45px !important; /* 高さを強制 */
+  padding: 0 14px !important; /* 上下パディングを0にしてline-heightで中央揃え */
+  border: 1px solid var(--mf-border) !important;
+  border-radius: 8px !important;
+  font-size: 14px !important;
+  line-height: 45px !important;
+  color: var(--mf-text-main) !important;
+  background-color: #fff !important;
+  transition: all 0.2s !important;
+  outline: none !important;
+  appearance: none !important; /* Remove default arrow */
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23636e72%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E') !important;
+  background-repeat: no-repeat !important;
+  background-position: right 12px top 50% !important;
+  background-size: 10px auto !important;
+  padding-right: 30px !important;
+  box-sizing: border-box !important;
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+.mf-input {
+  width: 100% !important;
+  height: 45px !important;
+  padding: 0 14px !important;
+  border: 1px solid var(--mf-border) !important;
+  border-radius: 8px !important;
+  font-size: 14px !important;
+  line-height: 45px !important;
+  color: var(--mf-text-main) !important;
+  background-color: #fff !important;
+  transition: all 0.2s !important;
+  outline: none !important;
+  box-sizing: border-box !important;
 }
 
 .mf-select:focus, .mf-input:focus {
-  border-color: var(--mf-color-2);
-  box-shadow: 0 0 0 3px rgba(214, 93, 177, 0.1);
+  border-color: var(--mf-color-2) !important;
+  box-shadow: 0 0 0 3px rgba(214, 93, 177, 0.1) !important;
 }
 
 .mf-input-short {
-  width: 70px;
-  text-align: center;
-  font-weight: bold;
+  width: 70px !important;
+  text-align: center !important;
+  font-weight: bold !important;
 }
 
 .mf-btn {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  width: 100%;
-  padding: 14px 16px; /* ボタンの高さも少し余裕を持たせる */
-  border: none;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.2s;
-  margin-top: 12px;
-  gap: 8px;
-  position: relative;
-  overflow: hidden;
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  width: 100% !important;
+  height: 48px !important;
+  padding: 0 16px !important;
+  border: none !important;
+  border-radius: 8px !important;
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  cursor: pointer !important;
+  transition: all 0.2s !important;
+  margin-top: 12px !important;
+  gap: 8px !important;
+  position: relative !important;
+  overflow: hidden !important;
+  box-sizing: border-box !important;
+  text-decoration: none !important;
 }
 
-/* メインボタン: 鮮やかなグラデーション */
 .mf-btn-primary {
-  background: linear-gradient(90deg, var(--mf-color-3), var(--mf-color-4));
-  color: white;
-  box-shadow: 0 4px 10px rgba(255, 111, 145, 0.3);
+  background: linear-gradient(90deg, var(--mf-color-3), var(--mf-color-4)) !important;
+  color: white !important;
+  box-shadow: 0 4px 10px rgba(255, 111, 145, 0.3) !important;
 }
 .mf-btn-primary:hover {
-  filter: brightness(1.05);
-  transform: translateY(-1px);
-  box-shadow: 0 6px 12px rgba(255, 111, 145, 0.4);
+  filter: brightness(1.05) !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 6px 12px rgba(255, 111, 145, 0.4) !important;
 }
 .mf-btn-primary:active {
-  transform: translateY(0);
+  transform: translateY(0) !important;
 }
 
 .mf-btn-secondary {
-  background-color: #fff;
-  color: var(--mf-color-1);
-  border: 1px solid var(--mf-color-1);
+  background-color: #fff !important;
+  color: var(--mf-color-1) !important;
+  border: 1px solid var(--mf-color-1) !important;
 }
 .mf-btn-secondary:hover {
-  background-color: #f8f4ff;
-  box-shadow: 0 2px 8px rgba(132, 94, 194, 0.15);
+  background-color: #f8f4ff !important;
+  box-shadow: 0 2px 8px rgba(132, 94, 194, 0.15) !important;
+}
+
+.mf-btn-accent {
+  background: linear-gradient(90deg, var(--mf-color-1), var(--mf-color-2)) !important;
+  color: white !important;
+  box-shadow: 0 4px 10px rgba(132, 94, 194, 0.3) !important;
+  /* デフォルトは非表示だがJSでflexにする */
+}
+.mf-btn-accent:hover {
+  filter: brightness(1.05) !important;
+  transform: translateY(-1px) !important;
 }
 
 /* プログレスバー */
 .mf-status-container {
-  margin-top: 24px;
+  margin-top: 24px !important;
 }
 
 .mf-status-text {
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--mf-text-sub);
-  margin-bottom: 8px;
-  display: flex;
-  justify-content: space-between;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  color: var(--mf-text-sub) !important;
+  margin-bottom: 8px !important;
+  display: flex !important;
+  justify-content: space-between !important;
 }
 
 .mf-progress-bg {
-  height: 8px;
-  background-color: #f1f2f6;
-  border-radius: 4px;
-  overflow: hidden;
+  height: 8px !important;
+  background-color: #f1f2f6 !important;
+  border-radius: 4px !important;
+  overflow: hidden !important;
 }
 
 .mf-progress-fill {
-  height: 100%;
-  /* バーにもグラデーション */
-  background: linear-gradient(90deg, var(--mf-color-6), var(--mf-color-5), var(--mf-color-4));
-  width: 0%;
-  transition: width 0.3s ease;
-  border-radius: 4px;
+  height: 100% !important;
+  background: linear-gradient(90deg, var(--mf-color-6), var(--mf-color-5), var(--mf-color-4)) !important;
+  width: 0% !important;
+  transition: width 0.3s ease !important;
+  border-radius: 4px !important;
+}
+
+/* --- モーダル --- */
+.mf-modal-overlay {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  background-color: rgba(0, 0, 0, 0.5) !important;
+  backdrop-filter: blur(3px) !important;
+  z-index: 2147483647 !important;
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  opacity: 0;
+  animation: mf-fade-in 0.3s forwards !important;
+}
+
+@keyframes mf-fade-in {
+  to { opacity: 1; }
+}
+
+.mf-modal-content {
+  background: white !important;
+  width: 90% !important;
+  max-width: 900px !important;
+  height: 80vh !important;
+  border-radius: 16px !important;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.3) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+  transform: scale(0.95);
+  animation: mf-pop-in 0.3s forwards !important;
+}
+
+@keyframes mf-pop-in {
+  to { transform: scale(1); }
+}
+
+.mf-modal-header {
+  padding: 16px 24px !important;
+  border-bottom: 1px solid var(--mf-border) !important;
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  background: #f9fafb !important;
+}
+
+.mf-modal-title {
+  font-size: 18px !important;
+  font-weight: 700 !important;
+  color: var(--mf-text-main) !important;
+}
+
+.mf-modal-body {
+  flex: 1 !important;
+  padding: 20px !important;
+  position: relative !important;
+}
+
+.mf-modal-footer {
+  padding: 16px 24px !important;
+  border-top: 1px solid var(--mf-border) !important;
+  display: flex !important;
+  justify-content: flex-end !important;
+  gap: 12px !important;
+  background: #fff !important;
+}
+
+.mf-modal-btn {
+  padding: 10px 20px !important;
+  border-radius: 6px !important;
+  font-weight: 600 !important;
+  cursor: pointer !important;
+  border: none !important;
+  font-size: 14px !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+}
+
+.mf-modal-btn-close {
+  background: #f3f4f6 !important;
+  color: var(--mf-text-main) !important;
+}
+.mf-modal-btn-close:hover {
+  background: #e5e7eb !important;
+}
+
+.mf-modal-btn-copy {
+  background: var(--mf-color-1) !important;
+  color: white !important;
+}
+.mf-modal-btn-copy:hover {
+  background: var(--mf-color-2) !important;
 }

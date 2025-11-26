@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "MoneyForward Asset Downloader",
-  "version": "1.0",
-  "description": "マネーフォワードの資産推移画面からデータをCSVで一括ダウンロードします。",
+  "version": "1.1",
+  "description": "マネーフォワードの資産推移画面からデータをCSVで一括ダウンロード・グラフ表示します。",
   "icons": {
     "16": "assets/icon16.png",
     "48": "assets/icon48.png",
@@ -13,8 +13,14 @@
       "matches": [
         "https://moneyforward.com/bs/history*"
       ],
-      "js": ["content.js"],
+      "js": ["assets/chart.min.js", "content.js"],
       "css": ["style.css"]
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["assets/chart.min.js"],
+      "matches": ["<all_urls>"]
     }
   ]
 }
