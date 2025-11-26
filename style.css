@@ -1,0 +1,220 @@
+/* モダン・グラデーションテーマのスタイル */
+:root {
+  /* 指定されたカラーパレット */
+  --mf-color-1: #845ec2;
+  --mf-color-2: #d65db1;
+  --mf-color-3: #ff6f91;
+  --mf-color-4: #ff9671;
+  --mf-color-5: #ffc75f;
+  --mf-color-6: #f9f871;
+  
+  --mf-text-main: #2d3436;
+  --mf-text-sub: #636e72;
+  --mf-border: #dfe6e9;
+  --mf-shadow: 0 10px 20px rgba(132, 94, 194, 0.15), 0 6px 6px rgba(0, 0, 0, 0.05);
+}
+
+#mf-extension-panel {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  width: 380px; /* 少し幅を広げる */
+  background-color: #ffffff;
+  box-shadow: var(--mf-shadow);
+  border-radius: 16px;
+  font-family: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif;
+  z-index: 99999;
+  /* overflow: hidden; ドロップダウンの表示を妨げないよう削除またはautoに */
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  font-size: 14px;
+  color: var(--mf-text-main);
+  animation: mf-slide-in 0.4s cubic-bezier(0.19, 1, 0.22, 1);
+}
+
+@keyframes mf-slide-in {
+  from { transform: translateY(30px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+#mf-extension-header {
+  /* グラデーション背景 */
+  background: linear-gradient(135deg, var(--mf-color-1), var(--mf-color-2), var(--mf-color-3));
+  padding: 16px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: white;
+  border-top-left-radius: 16px;
+  border-top-right-radius: 16px;
+}
+
+.mf-title {
+  font-weight: 700;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  letter-spacing: 0.02em;
+}
+
+.mf-icon-wrapper svg path {
+    stroke: white; /* アイコンは白抜き */
+}
+
+#mf-extension-close {
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 22px;
+  line-height: 1;
+  padding: 4px;
+  border-radius: 50%;
+  transition: background 0.2s, transform 0.2s;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+#mf-extension-close:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+  color: white;
+  transform: scale(1.1);
+}
+
+#mf-extension-body {
+  padding: 24px;
+  background-color: #fdfdfd;
+  border-bottom-left-radius: 16px;
+  border-bottom-right-radius: 16px;
+}
+
+.mf-section {
+  background: #fff;
+  border: 1px solid var(--mf-border);
+  border-radius: 12px;
+  padding: 20px; /* パディングを少し増やす */
+  margin-bottom: 20px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+}
+
+.mf-section:last-child {
+  margin-bottom: 0;
+}
+
+.mf-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--mf-text-sub);
+  margin-bottom: 12px; /* 余白を広げる */
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  /* グラデーションテキスト */
+  background: linear-gradient(90deg, var(--mf-color-1), var(--mf-color-2));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.mf-control-group {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.mf-select, .mf-input {
+  width: 100%;
+  padding: 12px 14px; /* パディングを増やして高さを確保 */
+  border: 1px solid var(--mf-border);
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1.5; /* 行間を確保 */
+  color: var(--mf-text-main);
+  background-color: #fff;
+  transition: all 0.2s;
+  outline: none;
+  appearance: auto; /* ブラウザ標準の矢印を表示させる（見切れ防止） */
+}
+
+.mf-select:focus, .mf-input:focus {
+  border-color: var(--mf-color-2);
+  box-shadow: 0 0 0 3px rgba(214, 93, 177, 0.1);
+}
+
+.mf-input-short {
+  width: 70px;
+  text-align: center;
+  font-weight: bold;
+}
+
+.mf-btn {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  padding: 14px 16px; /* ボタンの高さも少し余裕を持たせる */
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-top: 12px;
+  gap: 8px;
+  position: relative;
+  overflow: hidden;
+}
+
+/* メインボタン: 鮮やかなグラデーション */
+.mf-btn-primary {
+  background: linear-gradient(90deg, var(--mf-color-3), var(--mf-color-4));
+  color: white;
+  box-shadow: 0 4px 10px rgba(255, 111, 145, 0.3);
+}
+.mf-btn-primary:hover {
+  filter: brightness(1.05);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 12px rgba(255, 111, 145, 0.4);
+}
+.mf-btn-primary:active {
+  transform: translateY(0);
+}
+
+.mf-btn-secondary {
+  background-color: #fff;
+  color: var(--mf-color-1);
+  border: 1px solid var(--mf-color-1);
+}
+.mf-btn-secondary:hover {
+  background-color: #f8f4ff;
+  box-shadow: 0 2px 8px rgba(132, 94, 194, 0.15);
+}
+
+/* プログレスバー */
+.mf-status-container {
+  margin-top: 24px;
+}
+
+.mf-status-text {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--mf-text-sub);
+  margin-bottom: 8px;
+  display: flex;
+  justify-content: space-between;
+}
+
+.mf-progress-bg {
+  height: 8px;
+  background-color: #f1f2f6;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.mf-progress-fill {
+  height: 100%;
+  /* バーにもグラデーション */
+  background: linear-gradient(90deg, var(--mf-color-6), var(--mf-color-5), var(--mf-color-4));
+  width: 0%;
+  transition: width 0.3s ease;
+  border-radius: 4px;
+}

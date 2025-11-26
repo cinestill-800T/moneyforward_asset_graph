@@ -1,0 +1,8 @@
+*.csv
+.DS_Store
+__pycache__/
+*.pyc
+参考情報/
+generate_icon.py
+icon*_base64.txt
+
