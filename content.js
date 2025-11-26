@@ -1,10 +1,71 @@
 // グローバル変数
+const EXTENSION_VERSION = '1.8';
 let isProcessing = false;
 let globalChart = null; // Chart.js インスタンス保持用
 let lastFetchedData = null; // 最後に取得したデータを保持
 
+// デフォルトテーマ（爽やかブルー系）
+const DEFAULT_THEME = {
+    color1: '#80A1BA',
+    color2: '#91C4C3',
+    color3: '#B4DEBD',
+    color4: '#FFF7DD'
+};
+
+// シックダーク系プリセット
+const DARK_THEME = {
+    color1: '#313647',
+    color2: '#435663',
+    color3: '#A3B087',
+    color4: '#FFF8D4'
+};
+
+// 現在のテーマ設定
+let currentTheme = { ...DEFAULT_THEME };
+
+// 設定ロード & 適用
+loadTheme();
+
 // ロード確認用ログ
-console.log('%c MoneyForward Asset Downloader v1.4.1 Loaded ', 'background: #2563eb; color: white; font-weight: bold;');
+console.log(`%c MoneyForward Asset Downloader v${EXTENSION_VERSION} Loaded `, `background: linear-gradient(135deg, ${currentTheme.color1}, ${currentTheme.color2}); color: #fff; font-weight: bold; padding: 4px;`);
+
+// タブタイトルにバージョンを表示
+const titleSuffix = ` [Ext v${EXTENSION_VERSION}]`;
+if (!document.title.includes('[Ext v')) {
+    document.title = `${document.title}${titleSuffix}`;
+} else {
+    document.title = document.title.replace(/\[Ext v.*?\]/, titleSuffix);
+}
+
+// --- テーマ管理 ---
+function loadTheme() {
+    const saved = localStorage.getItem('mf_ext_theme');
+    if (saved) {
+        try {
+            const parsed = JSON.parse(saved);
+            currentTheme = { ...DEFAULT_THEME, ...parsed };
+        } catch(e) { console.error('Theme load error', e); }
+    }
+    applyTheme(currentTheme);
+}
+
+function saveTheme(theme) {
+    currentTheme = theme;
+    localStorage.setItem('mf_ext_theme', JSON.stringify(theme));
+    applyTheme(theme);
+}
+
+function applyTheme(theme) {
+    const r = document.documentElement;
+    r.style.setProperty('--mf-color-1', theme.color1);
+    r.style.setProperty('--mf-color-2', theme.color2);
+    r.style.setProperty('--mf-color-3', theme.color3);
+    r.style.setProperty('--mf-color-4', theme.color4);
+    
+    // グラフのグラデーション用ライトカラー計算 (簡易的)
+    // 本来はRGB変換して計算するが、ここでは固定の調整値またはそのまま使用
+    // CSS側で opacity などを利用して調整しているため、JS側ではメイン変数を更新すればOK
+}
 
 function createPanel() {
   const existing = document.getElementById('mf-extension-panel');
@@ -14,21 +75,29 @@ function createPanel() {
   panel.id = 'mf-extension-panel';
   
   const iconSvg = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M3 21H21" stroke="white" stroke-width="2" stroke-linecap="round"/>
-    <path d="M6 17L11 12L15 16L21 8" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-    <path d="M6 17V13" stroke="white" stroke-width="2" stroke-linecap="round"/>
-    <path d="M11 12V17" stroke="white" stroke-width="2" stroke-linecap="round"/>
-    <path d="M15 16V17" stroke="white" stroke-width="2" stroke-linecap="round"/>
-    <path d="M21 8V17" stroke="white" stroke-width="2" stroke-linecap="round"/>
+    <path d="M3 21H21" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
+    <path d="M6 17L11 12L15 16L21 8" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M6 17V13" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
+    <path d="M11 12V17" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
+    <path d="M15 16V17" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
+    <path d="M21 8V17" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
   </svg>`;
 
   panel.innerHTML = `
     <div id="mf-extension-header">
       <div class="mf-title">
         <span class="mf-icon-wrapper">${iconSvg}</span>
-        <span>資産データ一括ダウンローダー</span>
+        <span>資産データ一括ダウンローダー <span style="font-size:10px; opacity:0.8; margin-left:5px;">v${EXTENSION_VERSION}</span></span>
       </div>
-      <span id="mf-extension-close" title="閉じる">×</span>
+      <div class="mf-header-actions">
+          <div class="mf-header-btn" id="mf-btn-settings" title="テーマ設定">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="3"></circle>
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+            </svg>
+          </div>
+          <span id="mf-extension-close" title="閉じる">×</span>
+      </div>
     </div>
     
     <div id="mf-extension-body">
@@ -107,6 +176,7 @@ function createPanel() {
   document.getElementById('btn-download-all').addEventListener('click', () => handleDownload(false));
   document.getElementById('btn-download-specific-day').addEventListener('click', () => handleDownload(true));
   document.getElementById('btn-show-graph').addEventListener('click', showGraphModal);
+  document.getElementById('mf-btn-settings').addEventListener('click', showSettingsModal);
 }
 
 function updateStatus(text, progress = 0) {
@@ -117,6 +187,108 @@ function updateStatus(text, progress = 0) {
   if (statusEl) statusEl.textContent = text;
   if (percentEl) percentEl.textContent = `${progress}%`;
   if (barEl) barEl.style.width = `${progress}%`;
+}
+
+// --- 設定モーダル ---
+function showSettingsModal() {
+    const existing = document.getElementById('mf-settings-modal');
+    if(existing) existing.remove();
+
+    const modal = document.createElement('div');
+    modal.id = 'mf-settings-modal';
+    modal.className = 'mf-modal-overlay';
+    modal.innerHTML = `
+        <div class="mf-modal-content mf-settings-content" style="max-width:400px; height:auto;">
+            <div class="mf-modal-header">
+                <div class="mf-modal-title">テーマカラー設定</div>
+                <button class="mf-modal-btn mf-modal-btn-close" id="mf-settings-close">×</button>
+            </div>
+            <div class="mf-modal-body">
+                <div class="mf-preset-container">
+                    <button class="mf-preset-btn" id="mf-preset-default">標準 (ブルー)</button>
+                    <button class="mf-preset-btn" id="mf-preset-dark">シック (ダーク)</button>
+                </div>
+
+                <div style="margin-bottom:15px; padding-bottom:15px; border-bottom:1px dashed #dfe6e9;">
+                    <div style="font-size:12px; font-weight:bold; margin-bottom:5px; color:#636e72;">カラーコード一括貼り付け (4行)</div>
+                    <textarea id="mf-color-paste" class="mf-input" style="height:80px; min-height:80px; padding:8px; font-family:monospace; font-size:12px; resize:vertical;" placeholder="#80A1BA&#10;#91C4C3&#10;#B4DEBD&#10;#FFF7DD"></textarea>
+                </div>
+                
+                <div class="mf-color-picker-row">
+                    <span class="mf-color-picker-label">Color 1 (メイン)</span>
+                    <input type="color" class="mf-color-input" id="mf-color-1" value="${currentTheme.color1}">
+                </div>
+                <div class="mf-color-picker-row">
+                    <span class="mf-color-picker-label">Color 2 (サブ)</span>
+                    <input type="color" class="mf-color-input" id="mf-color-2" value="${currentTheme.color2}">
+                </div>
+                <div class="mf-color-picker-row">
+                    <span class="mf-color-picker-label">Color 3 (アクセント)</span>
+                    <input type="color" class="mf-color-input" id="mf-color-3" value="${currentTheme.color3}">
+                </div>
+                <div class="mf-color-picker-row">
+                    <span class="mf-color-picker-label">Color 4 (背景等)</span>
+                    <input type="color" class="mf-color-input" id="mf-color-4" value="${currentTheme.color4}">
+                </div>
+            </div>
+            <div class="mf-modal-footer">
+                <button class="mf-modal-btn mf-btn-primary" id="mf-settings-save">保存して適用</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+
+    // イベント設定
+    const closeModal = () => modal.remove();
+    document.getElementById('mf-settings-close').addEventListener('click', closeModal);
+    
+    // プリセット適用
+    document.getElementById('mf-preset-default').addEventListener('click', () => {
+        setPickerValues(DEFAULT_THEME);
+    });
+    document.getElementById('mf-preset-dark').addEventListener('click', () => {
+        setPickerValues(DARK_THEME);
+    });
+
+    // 一括貼り付けロジック
+    document.getElementById('mf-color-paste').addEventListener('input', (e) => {
+        const text = e.target.value;
+        // 空白除去し、#******形式の行を抽出
+        const colors = text.split(/[\r\n]+/)
+            .map(l => l.trim())
+            .filter(l => /^#[0-9A-Fa-f]{6}$/.test(l));
+            
+        if (colors.length >= 4) {
+            document.getElementById('mf-color-1').value = colors[0];
+            document.getElementById('mf-color-2').value = colors[1];
+            document.getElementById('mf-color-3').value = colors[2];
+            document.getElementById('mf-color-4').value = colors[3];
+        }
+    });
+
+    function setPickerValues(theme) {
+        document.getElementById('mf-color-1').value = theme.color1;
+        document.getElementById('mf-color-2').value = theme.color2;
+        document.getElementById('mf-color-3').value = theme.color3;
+        document.getElementById('mf-color-4').value = theme.color4;
+    }
+
+    // 保存
+    document.getElementById('mf-settings-save').addEventListener('click', () => {
+        const newTheme = {
+            color1: document.getElementById('mf-color-1').value,
+            color2: document.getElementById('mf-color-2').value,
+            color3: document.getElementById('mf-color-3').value,
+            color4: document.getElementById('mf-color-4').value
+        };
+        saveTheme(newTheme);
+        closeModal();
+        
+        // グラフが表示中なら再描画
+        if(globalChart && document.querySelector('.mf-modal-overlay:not(#mf-settings-modal)')) {
+            updateGraph(); // グラフ再描画で色を反映
+        }
+    });
 }
 
 // ==========================================
@@ -253,14 +425,15 @@ async function handleDownload(filterByDay = false) {
 // ==========================================
 function showGraphModal() {
     const existingModal = document.querySelector('.mf-modal-overlay');
-    if (existingModal) existingModal.remove();
+    // 設定モーダルが開いている場合は閉じない
+    if (existingModal && existingModal.id !== 'mf-settings-modal') existingModal.remove();
 
     const modal = document.createElement('div');
     modal.className = 'mf-modal-overlay';
     modal.innerHTML = `
         <div class="mf-modal-content">
             <div class="mf-modal-header">
-                <div class="mf-modal-title" style="margin-right: 20px; white-space: nowrap;">資産推移グラフ設定</div>
+                <div class="mf-modal-title" style="margin-right: 20px; white-space: nowrap;">資産推移グラフ設定 <span style="font-size:12px; font-weight:normal; opacity:0.7;">v${EXTENSION_VERSION}</span></div>
                 <div style="display:flex; gap:15px; align-items:center; flex-wrap: wrap;">
                     <div style="display:flex; align-items:center; gap:8px;">
                         <span style="font-size:12px; font-weight:bold; color:#636e72; white-space: nowrap;">期間:</span>
@@ -290,8 +463,8 @@ function showGraphModal() {
             </div>
             <div class="mf-modal-body">
                 <div id="mf-modal-loading" style="position:absolute; top:0; left:0; width:100%; height:100%; background:rgba(255,255,255,0.8); z-index:10; display:none; justify-content:center; align-items:center; flex-direction:column;">
-                    <div style="font-weight:bold; color:#2563eb; margin-bottom:10px;">データ取得中...</div>
-                    <div style="width:200px; height:4px; background:#ddd; border-radius:2px;"><div id="mf-modal-progress" style="width:0%; height:100%; background:#2563eb;"></div></div>
+                    <div style="font-weight:bold; color:#313647; margin-bottom:10px;">データ取得中...</div>
+                    <div style="width:200px; height:4px; background:#ddd; border-radius:2px;"><div id="mf-modal-progress" style="width:0%; height:100%; background:#A3B087;"></div></div>
                 </div>
                 <canvas id="mf-chart"></canvas>
                 <div id="mf-no-data-msg" style="display:none; position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); text-align:center; color:#888;">
@@ -364,21 +537,11 @@ function showGraphModal() {
     document.getElementById('mf-copy-data').addEventListener('click', copyGraphData);
     document.getElementById('mf-copy-image').addEventListener('click', copyGraphImage);
     
-    // 新規追加: グラフデータをCSV保存
     document.getElementById('mf-download-csv').addEventListener('click', () => {
         if (!globalChart || !lastFetchedData) return;
-        
-        // 現在のフィルタ条件を適用してデータを取得
         const filteredRows = getFilteredRows();
-        if (!filteredRows || filteredRows.length === 0) {
-            alert('データがありません');
-            return;
-        }
-        
-        // グラフ用にはreverseしているので、CSV用には降順（新しい順）に戻すのが一般的だが
-        // グラフ表示と合わせるなら昇順（古い順）。ここでは扱いやすい「新しい順（降順）」に戻して保存する
+        if (!filteredRows || filteredRows.length === 0) { alert('データがありません'); return; }
         const csvRows = [...filteredRows].reverse();
-        
         const finalCsv = generateCSV([lastFetchedData.headers, ...csvRows]);
         downloadCSV(finalCsv, `moneyforward_graph_data_${formatDate(new Date())}.csv`);
     });
@@ -396,7 +559,7 @@ function getFilteredRows() {
     const filterCheck = document.getElementById('mf-modal-filter-check').checked;
     const targetDay = parseInt(document.getElementById('mf-modal-day').value, 10);
 
-    let rows = [...lastFetchedData.rows]; // 新しい順
+    let rows = [...lastFetchedData.rows]; 
     
     if (filterCheck && !isNaN(targetDay)) {
         rows = rows.filter(r => {
@@ -405,7 +568,6 @@ function getFilteredRows() {
         });
     }
     
-    // グラフ表示用に古い順にソートして返す
     return rows.reverse();
 }
 
@@ -416,7 +578,6 @@ function updateGraph() {
     const rows = getFilteredRows();
 
     if (rows.length === 0) {
-        // データがない場合はグラフをクリア
         if (globalChart) globalChart.destroy();
         alert('指定条件に一致するデータがありません');
         return;
@@ -426,28 +587,64 @@ function updateGraph() {
     const labels = rows.map(r => r[0]);
     const isStacked = document.getElementById('mf-chart-stack-check').checked;
     
+    drawChartCanvas(labels, headers, rows, isStacked);
+}
+
+// ヘルパー
+function hexToRgbObj(hex) {
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    return { r, g, b };
+}
+
+function drawChartCanvas(labels, headers, rows, isStacked) {
+    if (globalChart) globalChart.destroy();
+    const ctx = document.getElementById('mf-chart').getContext('2d');
+
     const datasets = [];
-    
+    // 現在のテーマカラーを使用
+    const themeColors = [
+        currentTheme.color1, 
+        currentTheme.color2, 
+        currentTheme.color3, 
+        currentTheme.color4
+    ];
+    // バリエーション用追加色 (固定)
+    const extraColors = ['#C2B280', '#8C705F', '#6A8D92', '#D4C5A3'];
+    const palette = [...themeColors, ...extraColors];
+
     if (isStacked) {
-        const colors = ['#2563eb', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6', '#ec4899'];
         for(let i = 2; i < headers.length; i++) {
             if(headers[i] === '詳細') continue;
+            
+            const baseColor = palette[(i-2) % palette.length];
+            const rgb = hexToRgbObj(baseColor);
+            const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+            gradient.addColorStop(0, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.8)`);
+            gradient.addColorStop(1, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.1)`);
+
             datasets.push({
                 label: headers[i],
                 data: rows.map(r => parseInt(r[i] || 0, 10)),
-                backgroundColor: hexToRgba(colors[(i-2) % colors.length], 0.6),
-                borderColor: colors[(i-2) % colors.length],
+                backgroundColor: gradient,
+                borderColor: baseColor,
                 borderWidth: 1,
                 fill: true,
                 pointRadius: rows.length > 50 ? 0 : 3
             });
         }
     } else {
+        const rgb = hexToRgbObj(currentTheme.color1);
+        const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+        gradient.addColorStop(0, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.4)`);
+        gradient.addColorStop(1, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.0)`);
+
         datasets.push({
             label: '資産合計',
             data: rows.map(r => parseInt(r[1] || 0, 10)),
-            backgroundColor: 'rgba(37, 99, 235, 0.1)',
-            borderColor: '#2563eb', 
+            backgroundColor: gradient,
+            borderColor: currentTheme.color1, 
             borderWidth: 3,
             fill: true,
             pointRadius: rows.length > 50 ? 0 : 4,
@@ -455,27 +652,20 @@ function updateGraph() {
         });
     }
 
-    drawChartCanvas(labels, datasets, isStacked);
-}
-
-function drawChartCanvas(labels, datasets, isStacked) {
-    if (globalChart) globalChart.destroy();
-    const ctx = document.getElementById('mf-chart').getContext('2d');
-
     globalChart = new Chart(ctx, {
         type: 'line',
         data: { labels, datasets },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            interaction: {
-                mode: 'index',
-                intersect: false,
-            },
+            interaction: { mode: 'index', intersect: false },
             stacked: isStacked,
             plugins: {
-                title: { display: true, text: isStacked ? '資産推移（内訳）' : '資産推移（合計）', font: { size: 16 } },
+                title: { display: true, text: isStacked ? '資産推移（内訳）' : '資産推移（合計）', font: { size: 16 }, color: currentTheme.color1 },
                 tooltip: {
+                    backgroundColor: currentTheme.color1,
+                    titleColor: currentTheme.color4,
+                    bodyColor: '#fff',
                     callbacks: {
                         label: function(context) {
                             let label = context.dataset.label || '';
@@ -487,13 +677,15 @@ function drawChartCanvas(labels, datasets, isStacked) {
                         }
                     }
                 },
-                legend: { position: 'bottom' }
+                legend: { position: 'bottom', labels: { color: '#636e72' } }
             },
             scales: {
-                x: { grid: { display: false } },
+                x: { grid: { display: false }, ticks: { color: '#636e72' } },
                 y: {
                     stacked: isStacked,
+                    grid: { color: '#dfe6e9' },
                     ticks: {
+                        color: '#636e72',
                         callback: function(value) {
                             if (value >= 100000000) return (value / 100000000).toFixed(1) + '億円';
                             if (value >= 10000) return (value / 10000).toFixed(0) + '万円';
@@ -573,10 +765,8 @@ function copyGraphImage() {
 }
 function copyGraphData() {
     if (!lastFetchedData) return;
-    // フィルタ適用済みのデータをコピー
-    const filteredRows = getFilteredRows().reverse(); // クリップボード用は降順（新しい順）が見やすい
+    const filteredRows = getFilteredRows().reverse();
     if(filteredRows.length === 0) { alert('データがありません'); return; }
-    
     const headers = lastFetchedData.headers.join('\t');
     const body = filteredRows.map(row => row.join('\t')).join('\n');
     navigator.clipboard.writeText(`${headers}\n${body}`).then(()=>alert('データをコピーしました')).catch(e=>alert('失敗しました'));
