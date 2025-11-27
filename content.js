@@ -1,5 +1,5 @@
 // グローバル変数
-const EXTENSION_VERSION = '1.3.1';
+const EXTENSION_VERSION = '1.3.2';
 let isProcessing = false;
 let globalChart = null; // Chart.js インスタンス保持用
 let lastFetchedData = null; // 最後に取得したデータを保持
@@ -928,7 +928,7 @@ function copyGraphData() {
 
 
 // ===========================================================================
-// 家計簿画面拡張 (v1.3.0) - 安全な実装版
+// 家計簿画面拡張 (v1.3.2) - パネルドラッグ & UI改善版
 // ===========================================================================
 
 function initHouseholdBookEnhancement() {
@@ -1024,7 +1024,7 @@ function createCategoryBulkPanel() {
 
     // パネルHTML
     panel.innerHTML = `
-        <div class="mf-panel-header">
+        <div class="mf-panel-header" style="cursor: move;" title="ドラッグして移動">
             <span class="mf-panel-title">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:5px; vertical-align:text-bottom;">
                     <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
@@ -1032,7 +1032,11 @@ function createCategoryBulkPanel() {
                 </svg>
                 一括カテゴリ設定
             </span>
-            <button class="mf-panel-toggle" title="最小化/展開">_</button>
+            <div class="mf-header-btn" id="mf-panel-toggle-btn" title="折りたたむ" style="margin-left: auto;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+            </div>
         </div>
         <div class="mf-panel-body">
             <div class="mf-bulk-section">
@@ -1084,19 +1088,75 @@ function createCategoryBulkPanel() {
     document.getElementById('mf-clear-selection').addEventListener('click', clearSelection);
     document.getElementById('mf-apply-categories').addEventListener('click', applyCategoriesToSelected);
     
-    // パネル開閉
-    const toggleBtn = panel.querySelector('.mf-panel-toggle');
+    // パネル開閉（資産推移パネルと同じロジックに統一）
+    const toggleBtn = document.getElementById('mf-panel-toggle-btn');
     toggleBtn.addEventListener('click', () => {
         panel.classList.toggle('mf-minimized');
-        if(panel.classList.contains('mf-minimized')) {
-            toggleBtn.textContent = '+';
+        const isMinimized = panel.classList.contains('mf-minimized');
+        
+        if (isMinimized) {
+            toggleBtn.title = "展開する";
+            toggleBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>`;
         } else {
-            toggleBtn.textContent = '_';
+            toggleBtn.title = "折りたたむ";
+            toggleBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line></svg>`;
         }
     });
 
+    // ドラッグ機能の適用
+    makePanelDraggable(panel);
+
     // カテゴリ読み込み
     loadCategoryOptions();
+}
+
+function makePanelDraggable(panel) {
+    const header = panel.querySelector('.mf-panel-header');
+    let isDragging = false;
+    let startX, startY, initialLeft, initialTop;
+
+    header.addEventListener('mousedown', (e) => {
+        // ボタンのクリック時はドラッグしない
+        if (e.target.closest('.mf-header-btn')) return;
+        
+        isDragging = true;
+        startX = e.clientX;
+        startY = e.clientY;
+        
+        // getComputedStyleで現在の位置を取得（bottom/right指定の場合は変換が必要）
+        const rect = panel.getBoundingClientRect();
+        
+        // 固定配置(bottom/right)から絶対配置(top/left)へ移行してスムーズに動かす
+        // 一度動かしたら bottom/right 指定は解除する
+        panel.style.bottom = 'auto';
+        panel.style.right = 'auto';
+        panel.style.left = `${rect.left}px`;
+        panel.style.top = `${rect.top}px`;
+        
+        initialLeft = rect.left;
+        initialTop = rect.top;
+        
+        document.body.style.userSelect = 'none'; // テキスト選択防止
+        header.style.cursor = 'grabbing';
+    });
+
+    document.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+        
+        const dx = e.clientX - startX;
+        const dy = e.clientY - startY;
+        
+        panel.style.left = `${initialLeft + dx}px`;
+        panel.style.top = `${initialTop + dy}px`;
+    });
+
+    document.addEventListener('mouseup', () => {
+        if (isDragging) {
+            isDragging = false;
+            document.body.style.userSelect = '';
+            header.style.cursor = 'move';
+        }
+    });
 }
 
 function updateSelectedCount() {
