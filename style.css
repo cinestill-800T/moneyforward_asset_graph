@@ -29,6 +29,20 @@
   animation: mf-slide-in 0.4s cubic-bezier(0.19, 1, 0.22, 1) !important;
   box-sizing: border-box !important;
   display: block !important;
+  transition: width 0.3s ease, height 0.3s ease !important;
+}
+
+#mf-extension-panel.mf-minimized {
+  width: auto !important;
+  min-width: 240px !important;
+}
+
+#mf-extension-panel.mf-minimized #mf-extension-body {
+  display: none !important;
+}
+
+#mf-extension-panel.mf-minimized #mf-extension-header {
+  border-radius: 16px !important;
 }
 
 @keyframes mf-slide-in {
