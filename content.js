@@ -1,5 +1,5 @@
 // グローバル変数
-const EXTENSION_VERSION = '1.2.0';
+const EXTENSION_VERSION = '1.3.0';
 let isProcessing = false;
 let globalChart = null; // Chart.js インスタンス保持用
 let lastFetchedData = null; // 最後に取得したデータを保持
@@ -51,6 +51,22 @@ if (!document.title.includes('[Ext v')) {
 } else {
     document.title = document.title.replace(/\[Ext v.*?\]/, titleSuffix);
 }
+
+// ページ判定と初期化
+initPage();
+
+function initPage() {
+    const path = window.location.pathname;
+
+    if (path.startsWith('/bs/history')) {
+        // 資産推移画面
+        createPanel();
+    } else if (path.startsWith('/cf') || path === '/') {
+        // 家計簿画面
+        initHouseholdBookEnhancement();
+    }
+}
+
 
 // --- テーマ管理 ---
 function loadTheme() {
@@ -910,4 +926,360 @@ function copyGraphData() {
     navigator.clipboard.writeText(`${headers}\n${body}`).then(() => alert('データをコピーしました')).catch(e => alert('失敗しました'));
 }
 
-createPanel();
+
+// ===========================================================================
+// 家計簿画面拡張 (v1.3.0) - 安全な実装版
+// ===========================================================================
+
+function initHouseholdBookEnhancement() {
+    console.log('MoneyForward Asset Downloader: Household Book Enhancement Started');
+    
+    // 監視開始 (非同期で読み込まれる行に対応)
+    const observer = new MutationObserver(handleTableMutation);
+    const table = document.getElementById('cf-detail-table');
+    
+    if (table) {
+        // 初期ロード時の処理
+        addCheckboxesToTable();
+        observer.observe(table, { childList: true, subtree: true });
+    } else {
+        // テーブルがまだない場合はbodyを監視してテーブル出現を待つ
+        const bodyObserver = new MutationObserver(() => {
+            const t = document.getElementById('cf-detail-table');
+            if (t) {
+                addCheckboxesToTable();
+                observer.observe(t, { childList: true, subtree: true });
+                bodyObserver.disconnect();
+            }
+        });
+        bodyObserver.observe(document.body, { childList: true, subtree: true });
+    }
+    
+    createCategoryBulkPanel();
+}
+
+function handleTableMutation(mutations) {
+    let shouldUpdate = false;
+    for (const mutation of mutations) {
+        if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
+            shouldUpdate = true;
+            break;
+        }
+    }
+    if (shouldUpdate) {
+        addCheckboxesToTable();
+    }
+}
+
+function addCheckboxesToTable() {
+    const table = document.getElementById('cf-detail-table');
+    if (!table) return;
+
+    // ヘッダーへの追加
+    const theadRow = table.querySelector('thead tr');
+    if (theadRow && !theadRow.querySelector('.mf-ext-header-cell')) {
+        const th = document.createElement('th');
+        th.className = 'mf-ext-header-cell';
+        th.style.width = '30px';
+        th.innerHTML = '<input type="checkbox" id="mf-toggle-all-rows" title="全て選択/解除">';
+        theadRow.prepend(th);
+        
+        // 全選択イベント
+        document.getElementById('mf-toggle-all-rows').addEventListener('change', (e) => {
+            const checked = e.target.checked;
+            const checkboxes = document.querySelectorAll('.mf-ext-row-checkbox');
+            checkboxes.forEach(cb => {
+                cb.checked = checked;
+            });
+            updateSelectedCount();
+        });
+    }
+
+    // 各行への追加 (transaction_listクラスを持つ行)
+    const rows = table.querySelectorAll('tbody tr.transaction_list');
+    rows.forEach(row => {
+        if (!row.querySelector('.mf-ext-row-cell')) {
+            const td = document.createElement('td');
+            td.className = 'mf-ext-row-cell';
+            td.style.textAlign = 'center';
+            td.style.verticalAlign = 'middle';
+            
+            // 未分類かどうか判定してマークを付けるなどしても良いが、シンプルにチェックボックスのみ
+            td.innerHTML = '<input type="checkbox" class="mf-ext-row-checkbox">';
+            row.prepend(td);
+            
+            // クリックイベントでカウント更新
+            td.querySelector('input').addEventListener('change', updateSelectedCount);
+        }
+    });
+}
+
+function createCategoryBulkPanel() {
+    const existing = document.getElementById('mf-category-bulk-panel');
+    if (existing) existing.remove();
+
+    const panel = document.createElement('div');
+    panel.id = 'mf-category-bulk-panel';
+    panel.className = 'mf-panel'; // style.cssで定義予定
+
+    // パネルHTML
+    panel.innerHTML = `
+        <div class="mf-panel-header">
+            <span class="mf-panel-title">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:5px; vertical-align:text-bottom;">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                </svg>
+                一括カテゴリ設定
+            </span>
+            <button class="mf-panel-toggle" title="最小化/展開">_</button>
+        </div>
+        <div class="mf-panel-body">
+            <div class="mf-bulk-section">
+                <button id="mf-select-uncategorized" class="mf-btn mf-btn-secondary" style="margin-top:0;">
+                    未分類項目を自動選択
+                </button>
+            </div>
+            <div class="mf-bulk-section" style="border-bottom:1px dashed #ddd; padding-bottom:10px; margin-bottom:10px;">
+                <div style="font-size:13px; font-weight:bold;">選択中: <span id="mf-selected-count" style="color:#e74c3c; font-size:16px;">0</span> 件</div>
+                <button id="mf-clear-selection" style="font-size:10px; padding:2px 8px; border:1px solid #ccc; background:#fff; cursor:pointer; border-radius:4px;">選択解除</button>
+            </div>
+            
+            <div class="mf-bulk-section">
+                <label class="mf-label" style="margin-bottom:4px;">大項目</label>
+                <select id="mf-bulk-large-category" class="mf-select" style="height:36px; line-height:36px;">
+                    <option value="">変更しない</option>
+                </select>
+            </div>
+            <div class="mf-bulk-section">
+                <label class="mf-label" style="margin-bottom:4px;">中項目</label>
+                <select id="mf-bulk-middle-category" class="mf-select" style="height:36px; line-height:36px;">
+                    <option value="">変更しない</option>
+                </select>
+            </div>
+            
+            <div class="mf-bulk-section" style="margin-top:15px;">
+                <button id="mf-apply-categories" class="mf-btn mf-btn-primary">
+                    選択した項目に適用
+                </button>
+            </div>
+             <div id="mf-bulk-status" style="font-size:11px; color:#666; margin-top:5px; height:15px;"></div>
+        </div>
+    `;
+
+    document.body.appendChild(panel);
+
+    // イベントリスナー
+    document.getElementById('mf-select-uncategorized').addEventListener('click', selectUncategorizedItems);
+    document.getElementById('mf-clear-selection').addEventListener('click', clearSelection);
+    document.getElementById('mf-apply-categories').addEventListener('click', applyCategoriesToSelected);
+    
+    // パネル開閉
+    const toggleBtn = panel.querySelector('.mf-panel-toggle');
+    toggleBtn.addEventListener('click', () => {
+        panel.classList.toggle('mf-minimized');
+        if(panel.classList.contains('mf-minimized')) {
+            toggleBtn.textContent = '+';
+        } else {
+            toggleBtn.textContent = '_';
+        }
+    });
+
+    // カテゴリ読み込み
+    loadCategoryOptions();
+}
+
+function updateSelectedCount() {
+    const count = document.querySelectorAll('.mf-ext-row-checkbox:checked').length;
+    const el = document.getElementById('mf-selected-count');
+    if (el) el.textContent = count;
+}
+
+function selectUncategorizedItems() {
+    const rows = document.querySelectorAll('tbody tr.transaction_list');
+    let count = 0;
+    
+    rows.forEach(row => {
+        // 「未分類」の判定ロジック
+        // lctgセルのテキストに「未分類」が含まれているか、空欄の場合
+        const lctg = row.querySelector('td.lctg');
+        const lctgText = lctg ? lctg.textContent.trim() : '';
+        
+        // 振替などは対象外にする必要があるかもしれないが、ユーザー判断に任せる
+        
+        if (lctgText === '未分類' || lctgText === '') {
+            const cb = row.querySelector('.mf-ext-row-checkbox');
+            if (cb && !cb.checked) {
+                cb.checked = true;
+                count++;
+            }
+        }
+    });
+    
+    updateSelectedCount();
+    showMessage(`${count}件の未分類項目を選択しました`);
+}
+
+function clearSelection() {
+    const cbs = document.querySelectorAll('.mf-ext-row-checkbox');
+    cbs.forEach(cb => cb.checked = false);
+    document.getElementById('mf-toggle-all-rows').checked = false;
+    updateSelectedCount();
+}
+
+function loadCategoryOptions() {
+    // MoneyForwardのフィルタ用セレクトボックスからカテゴリを取得する
+    // 0番目が大項目フィルタ、1番目が中項目フィルタになっていることが多い
+    const selects = document.querySelectorAll('select.js-table-autofilter-select');
+    
+    if (selects.length >= 2) {
+        // 大項目
+        const lTarget = document.getElementById('mf-bulk-large-category');
+        const lOptions = selects[0].querySelectorAll('option');
+        lOptions.forEach(opt => {
+            if (opt.value) { // "全て"などを除外
+                const o = document.createElement('option');
+                o.value = opt.textContent.trim(); // valueではなく表示名を使う（マッチング用）
+                o.textContent = opt.textContent.trim();
+                lTarget.appendChild(o);
+            }
+        });
+        
+        // 中項目（注：大項目によってフィルタされる前の全量が取れるかは不明だが、取れる範囲で取る）
+        const mTarget = document.getElementById('mf-bulk-middle-category');
+        const mOptions = selects[1].querySelectorAll('option');
+        mOptions.forEach(opt => {
+             if (opt.value) {
+                const o = document.createElement('option');
+                o.value = opt.textContent.trim();
+                o.textContent = opt.textContent.trim();
+                mTarget.appendChild(o);
+            }
+        });
+    }
+}
+
+async function applyCategoriesToSelected() {
+    const lVal = document.getElementById('mf-bulk-large-category').value;
+    const mVal = document.getElementById('mf-bulk-middle-category').value;
+    
+    if (!lVal && !mVal) {
+        alert('変更する項目を選択してください');
+        return;
+    }
+    
+    const checkedBoxes = document.querySelectorAll('.mf-ext-row-checkbox:checked');
+    if (checkedBoxes.length === 0) {
+        alert('適用する行を選択してください');
+        return;
+    }
+    
+    if (!confirm(`${checkedBoxes.length}件のデータを変更しますか？\n※処理には時間がかかる場合があります。ページを閉じないでください。`)) {
+        return;
+    }
+    
+    const statusEl = document.getElementById('mf-bulk-status');
+    let successCount = 0;
+    let failCount = 0;
+    
+    // 処理開始
+    for (let i = 0; i < checkedBoxes.length; i++) {
+        const cb = checkedBoxes[i];
+        const row = cb.closest('tr');
+        
+        statusEl.textContent = `処理中... ${i+1}/${checkedBoxes.length}`;
+        
+        try {
+            let lSuccess = true;
+            let mSuccess = true;
+
+            // 大項目変更
+            if (lVal) {
+                lSuccess = await clickDropdownItem(row, '.lctg', lVal);
+                await new Promise(r => setTimeout(r, 500)); // Ajax完了待ち
+            }
+            
+            // 中項目変更
+            if (mVal && lSuccess) {
+                mSuccess = await clickDropdownItem(row, '.mctg', mVal);
+                await new Promise(r => setTimeout(r, 500)); // Ajax完了待ち
+            }
+            
+            if (lSuccess && mSuccess) {
+                successCount++;
+                // 成功したらチェックを外す（視覚的なフィードバック）
+                cb.checked = false;
+                // 背景色を一瞬変える
+                row.style.backgroundColor = '#e8f5e9';
+            } else {
+                failCount++;
+                row.style.backgroundColor = '#ffebee';
+            }
+            
+        } catch (e) {
+            console.error(e);
+            failCount++;
+        }
+        
+        // サーバー負荷軽減のためウェイト
+        await new Promise(r => setTimeout(r, 300));
+    }
+    
+    statusEl.textContent = `完了: 成功${successCount}件 / 失敗${failCount}件`;
+    updateSelectedCount();
+    alert('処理が完了しました');
+}
+
+// ドロップダウンをクリックして項目を選択する関数
+async function clickDropdownItem(row, cellSelector, targetText) {
+    const cell = row.querySelector(cellSelector);
+    if (!cell) return false;
+    
+    // ボタンを探す (Bootstrap dropdown toggle)
+    const toggleBtn = cell.querySelector('.dropdown-toggle');
+    if (!toggleBtn) return false;
+    
+    // 現在の値がすでにターゲットと同じならスキップ
+    if (toggleBtn.textContent.trim() === targetText) return true;
+    
+    // 1. ドロップダウンを開く
+    toggleBtn.click();
+    
+    // 2. メニューが表示されるのを少し待つ
+    await new Promise(r => setTimeout(r, 100));
+    
+    // 3. メニュー項目を探してクリック
+    // MoneyForwardの実装では、tdの中に .dropdown-menu が生成されるか、隠れているか
+    // 開いた瞬間にDOM構造が変わる可能性があるため、cell内で検索する
+    const menu = cell.querySelector('.dropdown-menu');
+    if (!menu) {
+        // 見つからない場合は閉じて終了
+        toggleBtn.click(); 
+        return false;
+    }
+    
+    const links = menu.querySelectorAll('a');
+    let targetLink = null;
+    
+    for(const link of links) {
+        if (link.textContent.trim() === targetText) {
+            targetLink = link;
+            break;
+        }
+    }
+    
+    if (targetLink) {
+        targetLink.click();
+        return true;
+    } else {
+        // 見つからない場合閉じる
+        toggleBtn.click();
+        return false;
+    }
+}
+
+function showMessage(msg) {
+    const el = document.getElementById('mf-bulk-status');
+    if(el) el.textContent = msg;
+}
+

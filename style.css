@@ -441,3 +441,95 @@
     background: #f0f0f0 !important;
     transform: translateY(-1px) !important;
 }
+
+/* --- 家計簿一括設定パネル (New in v1.3.0) --- */
+.mf-panel {
+  position: fixed !important;
+  bottom: 24px !important;
+  left: 24px !important; /* 左下に配置して計算対象チェックボックス付近での作業をしやすくする */
+  width: 320px !important;
+  background-color: #ffffff !important;
+  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.15) !important;
+  border-radius: 12px !important;
+  font-family: sans-serif !important;
+  z-index: 9999 !important;
+  border: 1px solid #dfe6e9 !important;
+  font-size: 13px !important;
+  color: #333 !important;
+  transition: all 0.3s ease !important;
+  overflow: hidden !important;
+}
+
+.mf-panel.mf-minimized {
+  width: auto !important;
+  height: auto !important;
+  border-radius: 8px !important;
+}
+.mf-panel.mf-minimized .mf-panel-body {
+  display: none !important;
+}
+.mf-panel.mf-minimized .mf-panel-title {
+    display: none !important;
+}
+.mf-panel.mf-minimized .mf-panel-header {
+    padding: 8px !important;
+    background: var(--mf-color-1) !important;
+}
+.mf-panel.mf-minimized .mf-panel-toggle {
+    color: #fff !important;
+    font-size: 20px !important;
+    line-height: 10px !important;
+}
+
+.mf-panel-header {
+  background: #f8f9fa !important;
+  padding: 12px 16px !important;
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  border-bottom: 1px solid #eee !important;
+  font-weight: bold !important;
+  color: var(--mf-color-1) !important;
+}
+
+.mf-panel-toggle {
+  background: none !important;
+  border: none !important;
+  cursor: pointer !important;
+  font-size: 16px !important;
+  color: #999 !important;
+  padding: 0 5px !important;
+}
+.mf-panel-toggle:hover {
+    color: var(--mf-color-1) !important;
+}
+
+.mf-panel-body {
+  padding: 16px !important;
+  background: #fff !important;
+}
+
+.mf-bulk-section {
+  margin-bottom: 12px !important;
+}
+.mf-bulk-section:last-child {
+    margin-bottom: 0 !important;
+}
+
+/* テーブル拡張スタイル */
+.mf-ext-header-cell {
+    background-color: #f0f0f0 !important;
+    border-bottom: 1px solid #ccc !important;
+    text-align: center !important;
+    vertical-align: middle !important;
+}
+
+.mf-ext-row-cell {
+    text-align: center !important;
+    vertical-align: middle !important;
+}
+
+.mf-ext-row-checkbox {
+    transform: scale(1.2);
+    cursor: pointer;
+}
