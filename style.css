@@ -442,11 +442,12 @@
     transform: translateY(-1px) !important;
 }
 
-/* --- 家計簿一括設定パネル (New in v1.3.0) --- */
+/* --- 家計簿一括設定パネル (New in v1.3.0/1.3.2) --- */
 .mf-panel {
   position: fixed !important;
   bottom: 24px !important;
-  left: 60px !important; /* チェックボックス列(約30px)と被らないよう少し右にずらす */
+  left: auto !important; /* 左配置を削除 */
+  right: 24px !important; /* 右下配置に変更 (資産推移パネルと統一) */
   width: 320px !important;
   background-color: #ffffff !important;
   box-shadow: 0 5px 20px rgba(0, 0, 0, 0.15) !important;
@@ -456,40 +457,41 @@
   border: 1px solid #dfe6e9 !important;
   font-size: 13px !important;
   color: #333 !important;
-  transition: all 0.3s ease !important;
+  /* 位置はJSで制御するため transitionはwidth/heightのみ */
+  transition: width 0.3s ease, height 0.3s ease !important;
   overflow: hidden !important;
 }
 
 .mf-panel.mf-minimized {
   width: auto !important;
+  min-width: 240px !important;
   height: auto !important;
-  border-radius: 8px !important;
 }
 .mf-panel.mf-minimized .mf-panel-body {
   display: none !important;
 }
-.mf-panel.mf-minimized .mf-panel-title {
-    display: none !important;
-}
-.mf-panel.mf-minimized .mf-panel-header {
-    padding: 8px !important;
-    background: var(--mf-color-1) !important;
-}
-.mf-panel.mf-minimized .mf-panel-toggle {
-    color: #fff !important;
-    font-size: 20px !important;
-    line-height: 10px !important;
-}
+/* ヘッダー非表示系は削除して、資産推移パネル同様ヘッダーを残す */
 
 .mf-panel-header {
-  background: #f8f9fa !important;
+  /* 資産推移パネルと統一したグラデーション */
+  background: linear-gradient(135deg, var(--mf-color-1) 0%, var(--mf-color-2) 100%) !important;
   padding: 12px 16px !important;
   display: flex !important;
   justify-content: space-between !important;
   align-items: center !important;
-  border-bottom: 1px solid #eee !important;
+  border-bottom: 1px solid rgba(255,255,255,0.2) !important;
   font-weight: bold !important;
-  color: var(--mf-color-1) !important;
+  color: #fff !important;
+  cursor: move !important; /* ドラッグ可能を示すカーソル */
+}
+
+.mf-panel-title {
+    display: flex !important;
+    align-items: center !important;
+}
+.mf-panel-title svg {
+    stroke: #fff !important; /* アイコンを白に */
+    margin-right: 5px;
 }
 
 .mf-panel-toggle {
@@ -497,11 +499,13 @@
   border: none !important;
   cursor: pointer !important;
   font-size: 16px !important;
-  color: #999 !important;
+  color: rgba(255,255,255,0.9) !important; /* 白っぽく */
   padding: 0 5px !important;
 }
 .mf-panel-toggle:hover {
-    color: var(--mf-color-1) !important;
+    color: #fff !important;
+    background-color: rgba(255,255,255,0.2) !important;
+    border-radius: 50%;
 }
 
 .mf-panel-body {
