@@ -59,7 +59,7 @@ function loadTheme() {
         try {
             const parsed = JSON.parse(saved);
             currentTheme = { ...DEFAULT_THEME, ...parsed };
-        } catch(e) { console.error('Theme load error', e); }
+        } catch (e) { console.error('Theme load error', e); }
     }
     applyTheme(currentTheme);
 }
@@ -87,15 +87,15 @@ function isCacheable(dateStr) {
     const target = new Date(dateStr);
     const now = new Date();
     // 現在の年月より前であればキャッシュ可能（過去データは変動しない前提）
-    return (target.getFullYear() < now.getFullYear()) || 
-           (target.getFullYear() === now.getFullYear() && target.getMonth() < now.getMonth());
+    return (target.getFullYear() < now.getFullYear()) ||
+        (target.getFullYear() === now.getFullYear() && target.getMonth() < now.getMonth());
 }
 
 function getCacheSize() {
     let size = 0;
     let count = 0;
-    for(let key in localStorage) {
-        if(key.startsWith('mf_cache_')) {
+    for (let key in localStorage) {
+        if (key.startsWith('mf_cache_')) {
             size += localStorage.getItem(key).length;
             count++;
         }
@@ -105,8 +105,8 @@ function getCacheSize() {
 
 function clearCache() {
     const keysToRemove = [];
-    for(let key in localStorage) {
-        if(key.startsWith('mf_cache_')) {
+    for (let key in localStorage) {
+        if (key.startsWith('mf_cache_')) {
             keysToRemove.push(key);
         }
     }
@@ -116,13 +116,13 @@ function clearCache() {
 
 
 function createPanel() {
-  const existing = document.getElementById('mf-extension-panel');
-  if (existing) existing.remove();
+    const existing = document.getElementById('mf-extension-panel');
+    if (existing) existing.remove();
 
-  const panel = document.createElement('div');
-  panel.id = 'mf-extension-panel';
-  
-  const iconSvg = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    const panel = document.createElement('div');
+    panel.id = 'mf-extension-panel';
+
+    const iconSvg = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
     <path d="M3 21H21" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
     <path d="M6 17L11 12L15 16L21 8" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
     <path d="M6 17V13" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
@@ -131,7 +131,7 @@ function createPanel() {
     <path d="M21 8V17" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
   </svg>`;
 
-  panel.innerHTML = `
+    panel.innerHTML = `
     <div id="mf-extension-header">
       <div class="mf-title">
         <span class="mf-icon-wrapper">${iconSvg}</span>
@@ -144,7 +144,11 @@ function createPanel() {
                 <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
             </svg>
           </div>
-          <span id="mf-extension-close" title="閉じる">×</span>
+          <div class="mf-header-btn" id="mf-extension-toggle" title="折りたたむ">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+          </div>
       </div>
     </div>
     
@@ -215,39 +219,49 @@ function createPanel() {
       </div>
     </div>
   `;
-  document.body.appendChild(panel);
+    document.body.appendChild(panel);
 
-  document.getElementById('mf-extension-close').addEventListener('click', () => {
-    panel.style.display = 'none';
-  });
+    const toggleBtn = document.getElementById('mf-extension-toggle');
+    toggleBtn.addEventListener('click', () => {
+        panel.classList.toggle('mf-minimized');
+        const isMinimized = panel.classList.contains('mf-minimized');
 
-  document.getElementById('btn-download-all').addEventListener('click', () => handleDownload(false));
-  document.getElementById('btn-download-specific-day').addEventListener('click', () => handleDownload(true));
-  document.getElementById('btn-show-graph').addEventListener('click', showGraphModal);
-  document.getElementById('mf-btn-settings').addEventListener('click', showSettingsModal);
+        if (isMinimized) {
+            toggleBtn.title = "展開する";
+            toggleBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>`;
+        } else {
+            toggleBtn.title = "折りたたむ";
+            toggleBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line></svg>`;
+        }
+    });
+
+    document.getElementById('btn-download-all').addEventListener('click', () => handleDownload(false));
+    document.getElementById('btn-download-specific-day').addEventListener('click', () => handleDownload(true));
+    document.getElementById('btn-show-graph').addEventListener('click', showGraphModal);
+    document.getElementById('mf-btn-settings').addEventListener('click', showSettingsModal);
 }
 
 function updateStatus(text, progress = 0) {
-  const statusEl = document.getElementById('mf-status-text').firstElementChild;
-  const percentEl = document.getElementById('mf-percent');
-  const barEl = document.getElementById('mf-progress-fill');
-  
-  if (statusEl) statusEl.textContent = text;
-  if (percentEl) percentEl.textContent = `${progress}%`;
-  if (barEl) barEl.style.width = `${progress}%`;
+    const statusEl = document.getElementById('mf-status-text').firstElementChild;
+    const percentEl = document.getElementById('mf-percent');
+    const barEl = document.getElementById('mf-progress-fill');
+
+    if (statusEl) statusEl.textContent = text;
+    if (percentEl) percentEl.textContent = `${progress}%`;
+    if (barEl) barEl.style.width = `${progress}%`;
 }
 
 // --- 設定モーダル ---
 function showSettingsModal() {
     const existing = document.getElementById('mf-settings-modal');
-    if(existing) existing.remove();
+    if (existing) existing.remove();
 
     const modal = document.createElement('div');
     modal.id = 'mf-settings-modal';
     modal.className = 'mf-modal-overlay';
-    
+
     // プリセット選択肢のHTML生成
-    const presetOptions = COLOR_PRESETS.map((preset, index) => 
+    const presetOptions = COLOR_PRESETS.map((preset, index) =>
         `<option value="${index}">${preset.name}</option>`
     ).join('');
 
@@ -324,7 +338,7 @@ function showSettingsModal() {
     // イベント設定
     const closeModal = () => modal.remove();
     document.getElementById('mf-settings-close').addEventListener('click', closeModal);
-    
+
     // プリセット選択時の動作
     document.getElementById('mf-preset-select').addEventListener('change', (e) => {
         const index = parseInt(e.target.value, 10);
@@ -347,7 +361,7 @@ function showSettingsModal() {
         const colors = text.split(/[\r\n]+/)
             .map(l => l.trim())
             .filter(l => /^#[0-9A-Fa-f]{6}$/.test(l));
-            
+
         if (colors.length >= 4) {
             document.getElementById('mf-color-1').value = colors[0];
             document.getElementById('mf-color-2').value = colors[1];
@@ -358,7 +372,7 @@ function showSettingsModal() {
 
     // キャッシュ削除
     document.getElementById('mf-clear-cache').addEventListener('click', () => {
-        if(confirm('保存されたキャッシュデータをすべて削除しますか？\n次回取得時は再度通信が発生します。')) {
+        if (confirm('保存されたキャッシュデータをすべて削除しますか？\n次回取得時は再度通信が発生します。')) {
             const count = clearCache();
             alert(`${count}件のキャッシュを削除しました。`);
             // 表示更新
@@ -384,9 +398,9 @@ function showSettingsModal() {
         };
         saveTheme(newTheme);
         closeModal();
-        
+
         // グラフが表示中なら再描画
-        if(globalChart && document.querySelector('.mf-modal-overlay:not(#mf-settings-modal)')) {
+        if (globalChart && document.querySelector('.mf-modal-overlay:not(#mf-settings-modal)')) {
             updateGraph(); // グラフ再描画で色を反映
         }
     });
@@ -396,99 +410,99 @@ function showSettingsModal() {
 // データ取得ロジック (共通)
 // ==========================================
 async function fetchData(years, onProgress) {
-  if (isProcessing) return null;
-  isProcessing = true;
+    if (isProcessing) return null;
+    isProcessing = true;
 
-  try {
-    const maxYears = years === 'all' ? 20 : parseInt(years, 10);
-    const totalMonths = maxYears * 12;
-    
-    const now = new Date();
-    let targetDate = new Date(now.getFullYear(), now.getMonth() + 1, 0); 
-    
-    const tasks = [];
-    for (let i = 0; i < totalMonths; i++) {
-        const dateStr = formatDate(targetDate);
-        tasks.push({
-            dateStr: dateStr,
-            url: `https://moneyforward.com/bs/history/list/${dateStr}/monthly/csv`,
-            cacheKey: getCacheKey(dateStr),
-            isCacheable: isCacheable(dateStr)
-        });
-        targetDate = getPrevMonthEnd(targetDate);
-    }
+    try {
+        const maxYears = years === 'all' ? 20 : parseInt(years, 10);
+        const totalMonths = maxYears * 12;
 
-    let allCsvRows = [];
-    let headers = [];
-    
-    const BATCH_SIZE = 50; 
-    for (let i = 0; i < tasks.length; i += BATCH_SIZE) {
-        const batch = tasks.slice(i, i + BATCH_SIZE);
-        const progress = Math.round(((i + 1) / tasks.length) * 100);
-        if(onProgress) onProgress(progress);
+        const now = new Date();
+        let targetDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
 
-        const promises = batch.map(async (task) => {
-            try {
-                // キャッシュチェック
-                if (task.isCacheable) {
-                    const cachedCSV = localStorage.getItem(task.cacheKey);
-                    if (cachedCSV) {
-                        const rows = parseCSV(cachedCSV);
-                        if (rows.length > 1) return rows;
-                    }
-                }
+        const tasks = [];
+        for (let i = 0; i < totalMonths; i++) {
+            const dateStr = formatDate(targetDate);
+            tasks.push({
+                dateStr: dateStr,
+                url: `https://moneyforward.com/bs/history/list/${dateStr}/monthly/csv`,
+                cacheKey: getCacheKey(dateStr),
+                isCacheable: isCacheable(dateStr)
+            });
+            targetDate = getPrevMonthEnd(targetDate);
+        }
 
-                // 通信取得
-                const res = await fetch(task.url);
-                if (!res.ok) return null;
-                const blob = await res.blob();
-                const text = await readBlobAsText(blob, 'Shift_JIS');
-                
-                const rows = parseCSV(text);
-                if (rows.length > 1) {
-                    // キャッシュ保存
+        let allCsvRows = [];
+        let headers = [];
+
+        const BATCH_SIZE = 50;
+        for (let i = 0; i < tasks.length; i += BATCH_SIZE) {
+            const batch = tasks.slice(i, i + BATCH_SIZE);
+            const progress = Math.round(((i + 1) / tasks.length) * 100);
+            if (onProgress) onProgress(progress);
+
+            const promises = batch.map(async (task) => {
+                try {
+                    // キャッシュチェック
                     if (task.isCacheable) {
-                        try {
-                            localStorage.setItem(task.cacheKey, text);
-                        } catch(e) { console.warn('Cache storage failed (quota exceeded?)', e); }
+                        const cachedCSV = localStorage.getItem(task.cacheKey);
+                        if (cachedCSV) {
+                            const rows = parseCSV(cachedCSV);
+                            if (rows.length > 1) return rows;
+                        }
                     }
-                    return rows;
+
+                    // 通信取得
+                    const res = await fetch(task.url);
+                    if (!res.ok) return null;
+                    const blob = await res.blob();
+                    const text = await readBlobAsText(blob, 'Shift_JIS');
+
+                    const rows = parseCSV(text);
+                    if (rows.length > 1) {
+                        // キャッシュ保存
+                        if (task.isCacheable) {
+                            try {
+                                localStorage.setItem(task.cacheKey, text);
+                            } catch (e) { console.warn('Cache storage failed (quota exceeded?)', e); }
+                        }
+                        return rows;
+                    }
+                    return null;
+                } catch (e) {
+                    return null;
                 }
-                return null;
-            } catch (e) {
-                return null;
-            }
-        });
+            });
 
-        const results = await Promise.all(promises);
-        
-        results.forEach(rows => {
-            if (rows) {
-                if (headers.length === 0) headers = rows[0];
-                allCsvRows.push(...rows.slice(1));
-            }
-        });
+            const results = await Promise.all(promises);
 
-        // 負荷軽減のため、少し待機（キャッシュヒット時は高速になるが、念のため）
-        await new Promise(r => setTimeout(r, 50));
-    }
+            results.forEach(rows => {
+                if (rows) {
+                    if (headers.length === 0) headers = rows[0];
+                    allCsvRows.push(...rows.slice(1));
+                }
+            });
 
-    if (allCsvRows.length === 0) {
+            // 負荷軽減のため、少し待機（キャッシュヒット時は高速になるが、念のため）
+            await new Promise(r => setTimeout(r, 50));
+        }
+
+        if (allCsvRows.length === 0) {
+            return null;
+        }
+
+        // 日付順ソート（新しい順）
+        allCsvRows.sort((a, b) => new Date(b[0]) - new Date(a[0]));
+        const uniqueRows = unique(allCsvRows);
+
+        return { headers, rows: uniqueRows };
+
+    } catch (err) {
+        console.error(err);
         return null;
+    } finally {
+        isProcessing = false;
     }
-
-    // 日付順ソート（新しい順）
-    allCsvRows.sort((a, b) => new Date(b[0]) - new Date(a[0]));
-    const uniqueRows = unique(allCsvRows);
-
-    return { headers, rows: uniqueRows };
-
-  } catch (err) {
-    console.error(err);
-    return null;
-  } finally {
-    isProcessing = false;
-  }
 }
 
 // パネルからのダウンロード実行
@@ -505,12 +519,12 @@ async function handleDownload(filterByDay = false) {
 
     const yearSelect = document.getElementById('mf-year-select');
     updateStatus('データ取得中...', 5);
-    
+
     const data = await fetchData(yearSelect.value, (progress) => {
         updateStatus('取得中...', progress);
     });
 
-    if(!data) {
+    if (!data) {
         updateStatus('データなし', 0);
         return;
     }
@@ -531,14 +545,14 @@ async function handleDownload(filterByDay = false) {
 
     updateStatus('CSV生成中...', 100);
     const finalCsv = generateCSV([data.headers, ...rows]);
-    
-    const fileName = filterByDay 
+
+    const fileName = filterByDay
         ? `moneyforward_daily_${targetDay}_${formatDate(new Date())}.csv`
         : `moneyforward_assets_history_full_${formatDate(new Date())}.csv`;
 
     downloadCSV(finalCsv, fileName);
     updateStatus(`完了 (${rows.length}件)`, 100);
-    
+
     // キャッシュ更新
     lastFetchedData = data;
 }
@@ -629,23 +643,23 @@ function showGraphModal() {
 
     // イベント設定
     document.getElementById('mf-modal-close').addEventListener('click', () => { modal.remove(); globalChart = null; });
-    
+
     const fetchBtn = document.getElementById('mf-modal-fetch');
     fetchBtn.addEventListener('click', async () => {
         const years = document.getElementById('mf-modal-range').value;
         const loading = document.getElementById('mf-modal-loading');
         const progress = document.getElementById('mf-modal-progress');
-        
+
         loading.style.display = 'flex';
         fetchBtn.disabled = true;
-        
+
         const data = await fetchData(years, (pct) => {
             progress.style.width = `${pct}%`;
         });
-        
+
         loading.style.display = 'none';
         fetchBtn.disabled = false;
-        
+
         if (data) {
             lastFetchedData = data;
             updateGraph();
@@ -660,7 +674,7 @@ function showGraphModal() {
 
     document.getElementById('mf-copy-data').addEventListener('click', copyGraphData);
     document.getElementById('mf-copy-image').addEventListener('click', copyGraphImage);
-    
+
     document.getElementById('mf-download-csv').addEventListener('click', () => {
         if (!globalChart || !lastFetchedData) return;
         const filteredRows = getFilteredRows();
@@ -683,15 +697,15 @@ function getFilteredRows() {
     const filterCheck = document.getElementById('mf-modal-filter-check').checked;
     const targetDay = parseInt(document.getElementById('mf-modal-day').value, 10);
 
-    let rows = [...lastFetchedData.rows]; 
-    
+    let rows = [...lastFetchedData.rows];
+
     if (filterCheck && !isNaN(targetDay)) {
         rows = rows.filter(r => {
             const d = new Date(r[0]);
             return !isNaN(d.getTime()) && d.getDate() === targetDay;
         });
     }
-    
+
     return rows.reverse();
 }
 
@@ -710,7 +724,7 @@ function updateGraph() {
     const headers = lastFetchedData.headers;
     const labels = rows.map(r => r[0]);
     const isStacked = document.getElementById('mf-chart-stack-check').checked;
-    
+
     drawChartCanvas(labels, headers, rows, isStacked);
 }
 
@@ -729,9 +743,9 @@ function drawChartCanvas(labels, headers, rows, isStacked) {
     const datasets = [];
     // 現在のテーマカラーを使用
     const themeColors = [
-        currentTheme.color1, 
-        currentTheme.color2, 
-        currentTheme.color3, 
+        currentTheme.color1,
+        currentTheme.color2,
+        currentTheme.color3,
         currentTheme.color4
     ];
     // バリエーション用追加色 (固定)
@@ -739,10 +753,10 @@ function drawChartCanvas(labels, headers, rows, isStacked) {
     const palette = [...themeColors, ...extraColors];
 
     if (isStacked) {
-        for(let i = 2; i < headers.length; i++) {
-            if(headers[i] === '詳細') continue;
-            
-            const baseColor = palette[(i-2) % palette.length];
+        for (let i = 2; i < headers.length; i++) {
+            if (headers[i] === '詳細') continue;
+
+            const baseColor = palette[(i - 2) % palette.length];
             const rgb = hexToRgbObj(baseColor);
             const gradient = ctx.createLinearGradient(0, 0, 0, 400);
             gradient.addColorStop(0, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.8)`);
@@ -768,7 +782,7 @@ function drawChartCanvas(labels, headers, rows, isStacked) {
             label: '資産合計',
             data: rows.map(r => parseInt(r[1] || 0, 10)),
             backgroundColor: gradient,
-            borderColor: currentTheme.color1, 
+            borderColor: currentTheme.color1,
             borderWidth: 3,
             fill: true,
             pointRadius: rows.length > 50 ? 0 : 4,
@@ -791,7 +805,7 @@ function drawChartCanvas(labels, headers, rows, isStacked) {
                     titleColor: currentTheme.color4,
                     bodyColor: '#fff',
                     callbacks: {
-                        label: function(context) {
+                        label: function (context) {
                             let label = context.dataset.label || '';
                             if (label) label += ': ';
                             if (context.parsed.y !== null) {
@@ -810,7 +824,7 @@ function drawChartCanvas(labels, headers, rows, isStacked) {
                     grid: { color: '#dfe6e9' },
                     ticks: {
                         color: '#636e72',
-                        callback: function(value) {
+                        callback: function (value) {
                             if (value >= 100000000) return (value / 100000000).toFixed(1) + '億円';
                             if (value >= 10000) return (value / 10000).toFixed(0) + '万円';
                             return '¥' + value.toLocaleString();
@@ -867,33 +881,33 @@ function unique(rows) {
     });
 }
 function generateCSV(rows) {
-  return rows.map(row => row.map(f => `"${String(f).replace(/"/g, '""')}"`).join(',')).join('\n');
+    return rows.map(row => row.map(f => `"${String(f).replace(/"/g, '""')}"`).join(',')).join('\n');
 }
 function downloadCSV(csv, filename) {
-  const bom = new Uint8Array([0xEF, 0xBB, 0xBF]);
-  const blob = new Blob([bom, csv], { type: 'text/csv;charset=utf-8;' });
-  const link = document.createElement('a');
-  link.href = URL.createObjectURL(blob);
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
+    const bom = new Uint8Array([0xEF, 0xBB, 0xBF]);
+    const blob = new Blob([bom, csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
 }
 function copyGraphImage() {
     const canvas = document.getElementById('mf-chart');
-    if(!canvas) return;
+    if (!canvas) return;
     canvas.toBlob(blob => {
         const item = new ClipboardItem({ 'image/png': blob });
-        navigator.clipboard.write([item]).then(() => alert('画像をコピーしました')).catch(e=>alert('失敗しました'));
+        navigator.clipboard.write([item]).then(() => alert('画像をコピーしました')).catch(e => alert('失敗しました'));
     });
 }
 function copyGraphData() {
     if (!lastFetchedData) return;
     const filteredRows = getFilteredRows().reverse();
-    if(filteredRows.length === 0) { alert('データがありません'); return; }
+    if (filteredRows.length === 0) { alert('データがありません'); return; }
     const headers = lastFetchedData.headers.join('\t');
     const body = filteredRows.map(row => row.join('\t')).join('\n');
-    navigator.clipboard.writeText(`${headers}\n${body}`).then(()=>alert('データをコピーしました')).catch(e=>alert('失敗しました'));
+    navigator.clipboard.writeText(`${headers}\n${body}`).then(() => alert('データをコピーしました')).catch(e => alert('失敗しました'));
 }
 
 createPanel();
