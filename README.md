@@ -2,7 +2,7 @@
 
 マネーフォワード ME の資産推移画面から、過去の資産データを一括で取得・CSVダウンロード・グラフ表示する Google Chrome 拡張機能です。
 
-![Version](https://img.shields.io/badge/version-1.9-blue.svg)
+![Version](https://img.shields.io/badge/version-1.2.0-blue.svg)
 
 ## ✨ 主な機能
 

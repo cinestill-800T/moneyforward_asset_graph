@@ -1,5 +1,5 @@
 // グローバル変数
-const EXTENSION_VERSION = '1.10';
+const EXTENSION_VERSION = '1.2.0';
 let isProcessing = false;
 let globalChart = null; // Chart.js インスタンス保持用
 let lastFetchedData = null; // 最後に取得したデータを保持
