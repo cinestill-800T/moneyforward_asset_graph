@@ -446,7 +446,7 @@
 .mf-panel {
   position: fixed !important;
   bottom: 24px !important;
-  left: 24px !important; /* 左下に配置して計算対象チェックボックス付近での作業をしやすくする */
+  left: 60px !important; /* チェックボックス列(約30px)と被らないよう少し右にずらす */
   width: 320px !important;
   background-color: #ffffff !important;
   box-shadow: 0 5px 20px rgba(0, 0, 0, 0.15) !important;

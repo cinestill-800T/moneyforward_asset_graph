@@ -1,5 +1,5 @@
 // グローバル変数
-const EXTENSION_VERSION = '1.3.0';
+const EXTENSION_VERSION = '1.3.1';
 let isProcessing = false;
 let globalChart = null; // Chart.js インスタンス保持用
 let lastFetchedData = null; // 最後に取得したデータを保持
@@ -1036,11 +1036,20 @@ function createCategoryBulkPanel() {
         </div>
         <div class="mf-panel-body">
             <div class="mf-bulk-section">
-                <button id="mf-select-uncategorized" class="mf-btn mf-btn-secondary" style="margin-top:0;">
+                <div style="font-size:12px; font-weight:bold; color:#555; margin-bottom:5px;">キーワード検索選択:</div>
+                <div style="display:flex; gap:5px;">
+                    <input type="text" id="mf-keyword-input" class="mf-input" style="height:30px; font-size:12px;" placeholder="例: Amazon">
+                    <button id="mf-select-keyword" class="mf-btn mf-btn-secondary" style="margin:0; padding:0 10px; width:auto; height:30px;">選択</button>
+                </div>
+            </div>
+            
+            <div class="mf-bulk-section" style="margin-top:10px;">
+                <button id="mf-select-uncategorized" class="mf-btn mf-btn-secondary" style="margin-top:0; height:32px; font-size:12px;">
                     未分類項目を自動選択
                 </button>
             </div>
-            <div class="mf-bulk-section" style="border-bottom:1px dashed #ddd; padding-bottom:10px; margin-bottom:10px;">
+            
+            <div class="mf-bulk-section" style="border-bottom:1px dashed #ddd; padding-bottom:10px; margin-bottom:10px; margin-top:10px;">
                 <div style="font-size:13px; font-weight:bold;">選択中: <span id="mf-selected-count" style="color:#e74c3c; font-size:16px;">0</span> 件</div>
                 <button id="mf-clear-selection" style="font-size:10px; padding:2px 8px; border:1px solid #ccc; background:#fff; cursor:pointer; border-radius:4px;">選択解除</button>
             </div>
@@ -1070,6 +1079,7 @@ function createCategoryBulkPanel() {
     document.body.appendChild(panel);
 
     // イベントリスナー
+    document.getElementById('mf-select-keyword').addEventListener('click', selectItemsByKeyword);
     document.getElementById('mf-select-uncategorized').addEventListener('click', selectUncategorizedItems);
     document.getElementById('mf-clear-selection').addEventListener('click', clearSelection);
     document.getElementById('mf-apply-categories').addEventListener('click', applyCategoriesToSelected);
@@ -1095,6 +1105,37 @@ function updateSelectedCount() {
     if (el) el.textContent = count;
 }
 
+function selectItemsByKeyword() {
+    const keyword = document.getElementById('mf-keyword-input').value.trim();
+    if (!keyword) {
+        alert('キーワードを入力してください');
+        return;
+    }
+    
+    const rows = document.querySelectorAll('tbody tr.transaction_list');
+    let count = 0;
+    
+    rows.forEach(row => {
+        // 摘要（内容）セルを取得
+        const contentCell = row.querySelector('td.content, td.js-content-field'); // 念のため複数のクラスを想定
+        const contentText = contentCell ? contentCell.textContent : '';
+        
+        // 変更可能な行かチェック
+        const hasDropdown = row.querySelector('td.lctg .dropdown-toggle');
+        
+        if (hasDropdown && contentText.includes(keyword)) {
+            const cb = row.querySelector('.mf-ext-row-checkbox');
+            if (cb && !cb.checked) {
+                cb.checked = true;
+                count++;
+            }
+        }
+    });
+    
+    updateSelectedCount();
+    showMessage(`「${keyword}」を含む${count}件を選択しました`);
+}
+
 function selectUncategorizedItems() {
     const rows = document.querySelectorAll('tbody tr.transaction_list');
     let count = 0;
@@ -1105,9 +1146,10 @@ function selectUncategorizedItems() {
         const lctg = row.querySelector('td.lctg');
         const lctgText = lctg ? lctg.textContent.trim() : '';
         
-        // 振替などは対象外にする必要があるかもしれないが、ユーザー判断に任せる
+        // 変更可能な行かチェック（振替などを除外）
+        const hasDropdown = row.querySelector('td.lctg .dropdown-toggle');
         
-        if (lctgText === '未分類' || lctgText === '') {
+        if (hasDropdown && (lctgText === '未分類' || lctgText === '')) {
             const cb = row.querySelector('.mf-ext-row-checkbox');
             if (cb && !cb.checked) {
                 cb.checked = true;
@@ -1192,17 +1234,26 @@ async function applyCategoriesToSelected() {
         try {
             let lSuccess = true;
             let mSuccess = true;
-
+            
+            // DOM要素が最新であることを確認するために再取得はせず、
+            // 行の状態が変化している可能性を考慮して少し待機を入れる
+            
             // 大項目変更
             if (lVal) {
+                // ドロップダウン操作の前に確実に対象行が見えている状態にする（スクロールなどは不要だが念のため）
                 lSuccess = await clickDropdownItem(row, '.lctg', lVal);
-                await new Promise(r => setTimeout(r, 500)); // Ajax完了待ち
+                
+                // MoneyForwardの挙動として、カテゴリ変更後に中項目がリセットされたりDOMが更新されるため
+                // 十分な待機時間が必要。
+                await new Promise(r => setTimeout(r, 800)); 
             }
             
             // 中項目変更
+            // 大項目変更が成功した場合、または大項目変更なしの場合に実行
             if (mVal && lSuccess) {
+                // 大項目変更後のDOM更新を待ってから実行
                 mSuccess = await clickDropdownItem(row, '.mctg', mVal);
-                await new Promise(r => setTimeout(r, 500)); // Ajax完了待ち
+                await new Promise(r => setTimeout(r, 800)); 
             }
             
             if (lSuccess && mSuccess) {
@@ -1221,8 +1272,9 @@ async function applyCategoriesToSelected() {
             failCount++;
         }
         
-        // サーバー負荷軽減のためウェイト
-        await new Promise(r => setTimeout(r, 300));
+        // サーバー負荷軽減 & DOM安定化のためのインターバル
+        // 連続リクエストでエラーになるのを防ぐため、少し長めに取る
+        await new Promise(r => setTimeout(r, 500));
     }
     
     statusEl.textContent = `完了: 成功${successCount}件 / 失敗${failCount}件`;
@@ -1246,14 +1298,16 @@ async function clickDropdownItem(row, cellSelector, targetText) {
     toggleBtn.click();
     
     // 2. メニューが表示されるのを少し待つ
-    await new Promise(r => setTimeout(r, 100));
+    // 通信環境によってはメニュー生成に時間がかかる場合があるためリトライを入れるとより堅牢
+    await new Promise(r => setTimeout(r, 200));
     
     // 3. メニュー項目を探してクリック
     // MoneyForwardの実装では、tdの中に .dropdown-menu が生成されるか、隠れているか
     // 開いた瞬間にDOM構造が変わる可能性があるため、cell内で検索する
     const menu = cell.querySelector('.dropdown-menu');
-    if (!menu) {
-        // 見つからない場合は閉じて終了
+    if (!menu || menu.style.display === 'none') {
+        // 開けなかった、またはメニューがない
+        // もう一度クリックして閉じておく（トグルなので）
         toggleBtn.click(); 
         return false;
     }
@@ -1282,4 +1336,3 @@ function showMessage(msg) {
     const el = document.getElementById('mf-bulk-status');
     if(el) el.textContent = msg;
 }
-
