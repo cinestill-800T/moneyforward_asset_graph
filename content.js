@@ -1,5 +1,5 @@
 // グローバル変数
-const EXTENSION_VERSION = '1.3.3';
+const EXTENSION_VERSION = '1.3.4';
 let isProcessing = false;
 let globalChart = null; // Chart.js インスタンス保持用
 let lastFetchedData = null; // 最後に取得したデータを保持
@@ -608,7 +608,7 @@ function showGraphModal() {
                         <span style="font-size:12px;">日</span>
                     </div>
 
-                    <button class="mf-modal-btn mf-btn-primary" id="mf-modal-fetch" style="padding: 6px 12px !important; font-size:12px !important; margin-top:0 !important; white-space: nowrap;">
+                    <button class="mf-modal-btn mf-modal-btn-primary" id="mf-modal-fetch" style="padding: 6px 12px !important; font-size:12px !important; margin-top:0 !important; white-space: nowrap;">
                         再取得・描画
                     </button>
                     
@@ -928,7 +928,7 @@ function copyGraphData() {
 
 
 // ===========================================================================
-// 家計簿画面拡張 (v1.3.3) - 機能削減 & プログレスバー実装
+// 家計簿画面拡張 (v1.3.4) - Stale Element対策強化版
 // ===========================================================================
 
 function initHouseholdBookEnhancement() {
@@ -1224,6 +1224,23 @@ async function applyCategoriesToSelected() {
         return;
     }
     
+    // 1. IDリストの作成
+    // DOM要素はAjax更新で無効になるため、IDで追跡する
+    const targetIds = [];
+    checkedBoxes.forEach(cb => {
+        const row = cb.closest('tr');
+        if (row && row.id) {
+            targetIds.push(row.id);
+        } else {
+            console.warn('Row without ID found, skipping safe update for this item.');
+        }
+    });
+
+    if (targetIds.length === 0) {
+        alert('更新対象の行IDが取得できませんでした。');
+        return;
+    }
+
     // 確認ポップアップを廃止して処理開始
     isProcessing = true;
     document.getElementById('mf-apply-categories').disabled = true;
@@ -1234,37 +1251,53 @@ async function applyCategoriesToSelected() {
     updateBulkStatus('処理開始...', 0);
     
     // 処理開始
-    for (let i = 0; i < checkedBoxes.length; i++) {
-        const cb = checkedBoxes[i];
-        const row = cb.closest('tr');
-        
-        // プログレスバー更新
-        const progress = Math.round(((i) / checkedBoxes.length) * 100);
-        updateBulkStatus(`処理中 (${i+1}/${checkedBoxes.length})...`, progress);
+    for (let i = 0; i < targetIds.length; i++) {
+        const id = targetIds[i];
+        const progress = Math.round(((i) / targetIds.length) * 100);
+        updateBulkStatus(`処理中 (${i+1}/${targetIds.length})...`, progress);
         
         try {
+            // 毎回DOMから最新の行を取得する (重要)
+            const row = document.getElementById(id);
+            
+            if (!row) {
+                console.error(`Row with id ${id} not found (likely filtered out or page changed)`);
+                failCount++;
+                continue;
+            }
+
             let lSuccess = true;
             let mSuccess = true;
             
             // 大項目変更
             if (lVal) {
                 lSuccess = await clickDropdownItem(row, '.lctg', lVal);
-                await new Promise(r => setTimeout(r, 800)); 
+                // MoneyForwardは1回の変更でAjaxが走り、行が書き換わる可能性があるため
+                // しっかり待機する。書き換わった場合は次の行取得(row)が重要になる。
+                await new Promise(r => setTimeout(r, 1200)); 
             }
             
+            // 行が書き換わっている可能性があるため、中項目変更前にもう一度取得を試みる
+            const refreshedRow = document.getElementById(id) || row;
+
             // 中項目変更
             if (mVal && lSuccess) {
-                mSuccess = await clickDropdownItem(row, '.mctg', mVal);
-                await new Promise(r => setTimeout(r, 800)); 
+                mSuccess = await clickDropdownItem(refreshedRow, '.mctg', mVal);
+                await new Promise(r => setTimeout(r, 1200)); 
             }
             
             if (lSuccess && mSuccess) {
                 successCount++;
-                cb.checked = false;
-                row.style.backgroundColor = '#e8f5e9';
+                // 成功したら最新のDOMのチェックボックスを外す
+                const freshCb = (document.getElementById(id) || row).querySelector('.mf-ext-row-checkbox');
+                if (freshCb) freshCb.checked = false;
+                
+                const finalRow = document.getElementById(id) || row;
+                if (finalRow) finalRow.style.backgroundColor = '#e8f5e9';
             } else {
                 failCount++;
-                row.style.backgroundColor = '#ffebee';
+                const finalRow = document.getElementById(id) || row;
+                if (finalRow) finalRow.style.backgroundColor = '#ffebee';
             }
             
         } catch (e) {
@@ -1272,6 +1305,7 @@ async function applyCategoriesToSelected() {
             failCount++;
         }
         
+        // 連続処理の安定化のための待機
         await new Promise(r => setTimeout(r, 500));
     }
     
@@ -1280,9 +1314,6 @@ async function applyCategoriesToSelected() {
     
     isProcessing = false;
     document.getElementById('mf-apply-categories').disabled = false;
-    
-    // アラート廃止
-    // 数秒後にステータスをリセットしてもいいが、結果確認のため残しておく
 }
 
 // ドロップダウンをクリックして項目を選択する関数
@@ -1302,7 +1333,7 @@ async function clickDropdownItem(row, cellSelector, targetText) {
     
     // 2. メニューが表示されるのを少し待つ
     // 通信環境によってはメニュー生成に時間がかかる場合があるためリトライを入れるとより堅牢
-    await new Promise(r => setTimeout(r, 200));
+    await new Promise(r => setTimeout(r, 300));
     
     // 3. メニュー項目を探してクリック
     // MoneyForwardの実装では、tdの中に .dropdown-menu が生成されるか、隠れているか
