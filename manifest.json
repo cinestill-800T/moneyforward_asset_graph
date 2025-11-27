@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "MoneyForward Asset Downloader",
-  "version": "1.3.2",
+  "version": "1.3.3",
   "description": "マネーフォワードの資産推移画面からデータをCSVで一括ダウンロード・グラフ表示します。家計簿画面での一括編集機能も搭載。",
   "icons": {
     "16": "assets/icon16.png",

@@ -1,5 +1,5 @@
 // グローバル変数
-const EXTENSION_VERSION = '1.3.2';
+const EXTENSION_VERSION = '1.3.3';
 let isProcessing = false;
 let globalChart = null; // Chart.js インスタンス保持用
 let lastFetchedData = null; // 最後に取得したデータを保持
@@ -928,7 +928,7 @@ function copyGraphData() {
 
 
 // ===========================================================================
-// 家計簿画面拡張 (v1.3.2) - パネルドラッグ & UI改善版
+// 家計簿画面拡張 (v1.3.3) - 機能削減 & プログレスバー実装
 // ===========================================================================
 
 function initHouseholdBookEnhancement() {
@@ -1039,21 +1039,7 @@ function createCategoryBulkPanel() {
             </div>
         </div>
         <div class="mf-panel-body">
-            <div class="mf-bulk-section">
-                <div style="font-size:12px; font-weight:bold; color:#555; margin-bottom:5px;">キーワード検索選択:</div>
-                <div style="display:flex; gap:5px;">
-                    <input type="text" id="mf-keyword-input" class="mf-input" style="height:30px; font-size:12px;" placeholder="例: Amazon">
-                    <button id="mf-select-keyword" class="mf-btn mf-btn-secondary" style="margin:0; padding:0 10px; width:auto; height:30px;">選択</button>
-                </div>
-            </div>
-            
-            <div class="mf-bulk-section" style="margin-top:10px;">
-                <button id="mf-select-uncategorized" class="mf-btn mf-btn-secondary" style="margin-top:0; height:32px; font-size:12px;">
-                    未分類項目を自動選択
-                </button>
-            </div>
-            
-            <div class="mf-bulk-section" style="border-bottom:1px dashed #ddd; padding-bottom:10px; margin-bottom:10px; margin-top:10px;">
+            <div class="mf-bulk-section" style="border-bottom:1px dashed #ddd; padding-bottom:10px; margin-bottom:10px;">
                 <div style="font-size:13px; font-weight:bold;">選択中: <span id="mf-selected-count" style="color:#e74c3c; font-size:16px;">0</span> 件</div>
                 <button id="mf-clear-selection" style="font-size:10px; padding:2px 8px; border:1px solid #ccc; background:#fff; cursor:pointer; border-radius:4px;">選択解除</button>
             </div>
@@ -1076,15 +1062,22 @@ function createCategoryBulkPanel() {
                     選択した項目に適用
                 </button>
             </div>
-             <div id="mf-bulk-status" style="font-size:11px; color:#666; margin-top:5px; height:15px;"></div>
+            
+            <div class="mf-status-container" style="margin-top:15px;">
+                <div class="mf-status-text" id="mf-bulk-status-text">
+                    <span>待機中...</span>
+                    <span id="mf-bulk-percent">0%</span>
+                </div>
+                <div class="mf-progress-bg">
+                    <div class="mf-progress-fill" id="mf-bulk-progress-fill"></div>
+                </div>
+            </div>
         </div>
     `;
 
     document.body.appendChild(panel);
 
     // イベントリスナー
-    document.getElementById('mf-select-keyword').addEventListener('click', selectItemsByKeyword);
-    document.getElementById('mf-select-uncategorized').addEventListener('click', selectUncategorizedItems);
     document.getElementById('mf-clear-selection').addEventListener('click', clearSelection);
     document.getElementById('mf-apply-categories').addEventListener('click', applyCategoriesToSelected);
     
@@ -1108,6 +1101,16 @@ function createCategoryBulkPanel() {
 
     // カテゴリ読み込み
     loadCategoryOptions();
+}
+
+function updateBulkStatus(text, progress = 0) {
+    const statusEl = document.getElementById('mf-bulk-status-text').firstElementChild;
+    const percentEl = document.getElementById('mf-bulk-percent');
+    const barEl = document.getElementById('mf-bulk-progress-fill');
+
+    if (statusEl) statusEl.textContent = text;
+    if (percentEl) percentEl.textContent = `${progress}%`;
+    if (barEl) barEl.style.width = `${progress}%`;
 }
 
 function makePanelDraggable(panel) {
@@ -1165,63 +1168,6 @@ function updateSelectedCount() {
     if (el) el.textContent = count;
 }
 
-function selectItemsByKeyword() {
-    const keyword = document.getElementById('mf-keyword-input').value.trim();
-    if (!keyword) {
-        alert('キーワードを入力してください');
-        return;
-    }
-    
-    const rows = document.querySelectorAll('tbody tr.transaction_list');
-    let count = 0;
-    
-    rows.forEach(row => {
-        // 摘要（内容）セルを取得
-        const contentCell = row.querySelector('td.content, td.js-content-field'); // 念のため複数のクラスを想定
-        const contentText = contentCell ? contentCell.textContent : '';
-        
-        // 変更可能な行かチェック
-        const hasDropdown = row.querySelector('td.lctg .dropdown-toggle');
-        
-        if (hasDropdown && contentText.includes(keyword)) {
-            const cb = row.querySelector('.mf-ext-row-checkbox');
-            if (cb && !cb.checked) {
-                cb.checked = true;
-                count++;
-            }
-        }
-    });
-    
-    updateSelectedCount();
-    showMessage(`「${keyword}」を含む${count}件を選択しました`);
-}
-
-function selectUncategorizedItems() {
-    const rows = document.querySelectorAll('tbody tr.transaction_list');
-    let count = 0;
-    
-    rows.forEach(row => {
-        // 「未分類」の判定ロジック
-        // lctgセルのテキストに「未分類」が含まれているか、空欄の場合
-        const lctg = row.querySelector('td.lctg');
-        const lctgText = lctg ? lctg.textContent.trim() : '';
-        
-        // 変更可能な行かチェック（振替などを除外）
-        const hasDropdown = row.querySelector('td.lctg .dropdown-toggle');
-        
-        if (hasDropdown && (lctgText === '未分類' || lctgText === '')) {
-            const cb = row.querySelector('.mf-ext-row-checkbox');
-            if (cb && !cb.checked) {
-                cb.checked = true;
-                count++;
-            }
-        }
-    });
-    
-    updateSelectedCount();
-    showMessage(`${count}件の未分類項目を選択しました`);
-}
-
 function clearSelection() {
     const cbs = document.querySelectorAll('.mf-ext-row-checkbox');
     cbs.forEach(cb => cb.checked = false);
@@ -1262,6 +1208,8 @@ function loadCategoryOptions() {
 }
 
 async function applyCategoriesToSelected() {
+    if (isProcessing) return; // 二重実行防止
+
     const lVal = document.getElementById('mf-bulk-large-category').value;
     const mVal = document.getElementById('mf-bulk-middle-category').value;
     
@@ -1276,51 +1224,43 @@ async function applyCategoriesToSelected() {
         return;
     }
     
-    if (!confirm(`${checkedBoxes.length}件のデータを変更しますか？\n※処理には時間がかかる場合があります。ページを閉じないでください。`)) {
-        return;
-    }
+    // 確認ポップアップを廃止して処理開始
+    isProcessing = true;
+    document.getElementById('mf-apply-categories').disabled = true;
     
-    const statusEl = document.getElementById('mf-bulk-status');
     let successCount = 0;
     let failCount = 0;
+    
+    updateBulkStatus('処理開始...', 0);
     
     // 処理開始
     for (let i = 0; i < checkedBoxes.length; i++) {
         const cb = checkedBoxes[i];
         const row = cb.closest('tr');
         
-        statusEl.textContent = `処理中... ${i+1}/${checkedBoxes.length}`;
+        // プログレスバー更新
+        const progress = Math.round(((i) / checkedBoxes.length) * 100);
+        updateBulkStatus(`処理中 (${i+1}/${checkedBoxes.length})...`, progress);
         
         try {
             let lSuccess = true;
             let mSuccess = true;
             
-            // DOM要素が最新であることを確認するために再取得はせず、
-            // 行の状態が変化している可能性を考慮して少し待機を入れる
-            
             // 大項目変更
             if (lVal) {
-                // ドロップダウン操作の前に確実に対象行が見えている状態にする（スクロールなどは不要だが念のため）
                 lSuccess = await clickDropdownItem(row, '.lctg', lVal);
-                
-                // MoneyForwardの挙動として、カテゴリ変更後に中項目がリセットされたりDOMが更新されるため
-                // 十分な待機時間が必要。
                 await new Promise(r => setTimeout(r, 800)); 
             }
             
             // 中項目変更
-            // 大項目変更が成功した場合、または大項目変更なしの場合に実行
             if (mVal && lSuccess) {
-                // 大項目変更後のDOM更新を待ってから実行
                 mSuccess = await clickDropdownItem(row, '.mctg', mVal);
                 await new Promise(r => setTimeout(r, 800)); 
             }
             
             if (lSuccess && mSuccess) {
                 successCount++;
-                // 成功したらチェックを外す（視覚的なフィードバック）
                 cb.checked = false;
-                // 背景色を一瞬変える
                 row.style.backgroundColor = '#e8f5e9';
             } else {
                 failCount++;
@@ -1332,14 +1272,17 @@ async function applyCategoriesToSelected() {
             failCount++;
         }
         
-        // サーバー負荷軽減 & DOM安定化のためのインターバル
-        // 連続リクエストでエラーになるのを防ぐため、少し長めに取る
         await new Promise(r => setTimeout(r, 500));
     }
     
-    statusEl.textContent = `完了: 成功${successCount}件 / 失敗${failCount}件`;
+    updateBulkStatus(`完了: 成功${successCount} / 失敗${failCount}`, 100);
     updateSelectedCount();
-    alert('処理が完了しました');
+    
+    isProcessing = false;
+    document.getElementById('mf-apply-categories').disabled = false;
+    
+    // アラート廃止
+    // 数秒後にステータスをリセットしてもいいが、結果確認のため残しておく
 }
 
 // ドロップダウンをクリックして項目を選択する関数
@@ -1390,9 +1333,4 @@ async function clickDropdownItem(row, cellSelector, targetText) {
         toggleBtn.click();
         return false;
     }
-}
-
-function showMessage(msg) {
-    const el = document.getElementById('mf-bulk-status');
-    if(el) el.textContent = msg;
 }
