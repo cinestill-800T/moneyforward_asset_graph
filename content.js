@@ -42,7 +42,7 @@ let currentTheme = { ...DEFAULT_THEME };
 loadTheme();
 
 // ロード確認用ログ
-console.log(`%c MoneyForward Asset Downloader v${EXTENSION_VERSION} Loaded `, `background: linear-gradient(135deg, ${currentTheme.color1}, ${currentTheme.color2}); color: #fff; font-weight: bold; padding: 4px;`);
+console.log(`%c MoneyForward Enhancer v${EXTENSION_VERSION} Loaded `, `background: linear-gradient(135deg, ${currentTheme.color1}, ${currentTheme.color2}); color: #fff; font-weight: bold; padding: 4px;`);
 
 // タブタイトルにバージョンを表示
 const titleSuffix = ` [Ext v${EXTENSION_VERSION}]`;
@@ -151,7 +151,7 @@ function createPanel() {
     <div id="mf-extension-header">
       <div class="mf-title">
         <span class="mf-icon-wrapper">${iconSvg}</span>
-        <span>資産データ一括ダウンローダー <span style="font-size:10px; opacity:0.8; margin-left:5px;">v${EXTENSION_VERSION}</span></span>
+        <span>MoneyForward Enhancer <span style="font-size:10px; opacity:0.8; margin-left:5px;">v${EXTENSION_VERSION}</span></span>
       </div>
       <div class="mf-header-actions">
           <div class="mf-header-btn" id="mf-btn-settings" title="設定">
@@ -932,7 +932,7 @@ function copyGraphData() {
 // ===========================================================================
 
 function initHouseholdBookEnhancement() {
-    console.log('MoneyForward Asset Downloader: Household Book Enhancement Started');
+    console.log('MoneyForward Enhancer: Household Book Enhancement Started');
     
     // 監視開始 (非同期で読み込まれる行に対応)
     const observer = new MutationObserver(handleTableMutation);
