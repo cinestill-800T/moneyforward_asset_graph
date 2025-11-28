@@ -1,5 +1,5 @@
 // グローバル変数
-const EXTENSION_VERSION = '1.3.5';
+const EXTENSION_VERSION = '1.3.6';
 let isProcessing = false;
 let globalChart = null; // Chart.js インスタンス保持用
 let lastFetchedData = null; // 最後に取得したデータを保持
@@ -1047,10 +1047,16 @@ function createCategoryBulkPanel() {
             </div>
             
             <div class="mf-bulk-section">
-                <label class="mf-label" style="margin-bottom:4px;">大項目</label>
-                <select id="mf-bulk-large-category" class="mf-select" style="height:36px; line-height:36px;">
-                    <option value="">変更しない</option>
-                </select>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                    <label class="mf-label" style="margin-bottom:0;">大項目</label>
+                    <button id="mf-toggle-large-category" style="background:none; border:none; cursor:pointer; font-size:11px; color:#80A1BA; text-decoration:underline;">表示/非表示</button>
+                </div>
+                <div id="mf-large-category-container" style="display:none;">
+                    <select id="mf-bulk-large-category" class="mf-select" style="height:36px; line-height:36px;">
+                        <option value="">変更しない (自動判定)</option>
+                    </select>
+                    <div style="font-size:10px; color:#999; margin-top:2px;">※中項目から自動判定されます</div>
+                </div>
             </div>
             <div class="mf-bulk-section">
                 <label class="mf-label" style="margin-bottom:4px;">中項目</label>
@@ -1082,6 +1088,14 @@ function createCategoryBulkPanel() {
     // イベントリスナー
     document.getElementById('mf-clear-selection').addEventListener('click', clearSelection);
     document.getElementById('mf-apply-categories').addEventListener('click', applyCategoriesToSelected);
+    
+    // 大項目表示切替
+    const lContainer = document.getElementById('mf-large-category-container');
+    const lToggle = document.getElementById('mf-toggle-large-category');
+    lToggle.addEventListener('click', () => {
+        const isHidden = lContainer.style.display === 'none';
+        lContainer.style.display = isHidden ? 'block' : 'none';
+    });
     
     // パネル開閉（資産推移パネルと同じロジックに統一）
     const toggleBtn = document.getElementById('mf-panel-toggle-btn');
@@ -1229,24 +1243,103 @@ function loadCategoryOptions() {
         }
     }
 
-    // ヘルパー：オプション追加
+    // ヘルパー：オプション追加（頻度順）
     const addOptions = (sourceOptions, targetSelect) => {
-        const seen = new Set();
+        const counts = {};
+        const options = [];
+        
+        // 1. 出現回数をカウント（画面上のテーブルから）
+        const table = document.getElementById('cf-detail-table');
+        if (table) {
+            const rows = table.querySelectorAll('tbody tr');
+            rows.forEach(row => {
+                // 大項目・中項目のセルを探してテキストを取得
+                const lCell = row.querySelector('.lctg');
+                const mCell = row.querySelector('.mctg');
+                if (lCell) {
+                    const text = lCell.textContent.trim();
+                    counts[text] = (counts[text] || 0) + 1;
+                }
+                if (mCell) {
+                    const text = mCell.textContent.trim();
+                    counts[text] = (counts[text] || 0) + 1;
+                }
+            });
+        }
+
+        // 2. オプションリスト作成
         sourceOptions.forEach(opt => {
             const text = opt.textContent.trim();
             // "全て"や空の値を除外
-            if (opt.value && text && text !== '全て' && !seen.has(text)) {
+            if (opt.value && text && text !== '全て') {
+                options.push({
+                    text: text,
+                    count: counts[text] || 0, // カウントがなければ0
+                    originalIndex: options.length // 元の順序も保持（同率の場合のため）
+                });
+            }
+        });
+
+        // 3. ソート（頻度降順 -> 元の順序）
+        options.sort((a, b) => {
+            if (b.count !== a.count) return b.count - a.count;
+            return a.originalIndex - b.originalIndex;
+        });
+
+        // 4. 重複排除しつつ追加
+        const seen = new Set();
+        options.forEach(opt => {
+            if (!seen.has(opt.text)) {
                 const o = document.createElement('option');
-                o.value = text; // valueではなく表示名を使う（マッチング用）
-                o.textContent = text;
+                o.value = opt.text; 
+                o.textContent = opt.text;
+                // 頻度が高いものは強調表示（オプショナル）
+                if (opt.count > 0) {
+                    o.textContent += ` (${opt.count})`;
+                }
                 targetSelect.appendChild(o);
-                seen.add(text);
+                seen.add(opt.text);
             }
         });
     };
 
     if (lOptions.length > 0) addOptions(lOptions, lTarget);
     if (mOptions.length > 0) addOptions(mOptions, mTarget);
+    
+    // マッピングデータの構築 (中項目 -> 大項目)
+    // ページ内の隠しselect要素などから親子関係を推測
+    const categoryMap = {}; // { "中項目名": "大項目名" }
+    
+    // js-large-category-selectの変更イベント等からマッピングを作れるとベストだが、
+    // ここでは静的に解析できる範囲で作成する
+    // MoneyForwardの構造上、select.middle_category の option要素には data-group 属性などで親IDが紐付いていることが多い
+    // ただしサイトの実装によるため、確実なのは「現在表示されている行」からペアを学習すること
+    
+    const learnCategoryMap = () => {
+        const table = document.getElementById('cf-detail-table');
+        if (!table) return;
+        const rows = table.querySelectorAll('tbody tr');
+        rows.forEach(row => {
+            const lText = row.querySelector('.lctg')?.textContent.trim();
+            const mText = row.querySelector('.mctg')?.textContent.trim();
+            if (lText && mText && lText !== '未分類') {
+                categoryMap[mText] = lText;
+            }
+        });
+    };
+    learnCategoryMap();
+    
+    // 中項目変更時に大項目を自動選択するイベント
+    mTarget.addEventListener('change', (e) => {
+        const selectedMiddle = e.target.value;
+        if (categoryMap[selectedMiddle]) {
+            lTarget.value = categoryMap[selectedMiddle];
+        } else {
+            // マップにない場合は、既存の隠しフォーム等のロジックから推測を試みる
+            // フォーム上の select.middle_category を走査し、data-group などを探す
+            // (ここでは簡易的に、既存リストから逆引きは難しいのでスキップ)
+        }
+    });
 }
 
 async function applyCategoriesToSelected() {
@@ -1293,77 +1386,96 @@ async function applyCategoriesToSelected() {
     updateBulkStatus('処理開始...', 0);
     
     // 処理開始
-    for (let i = 0; i < targetIds.length; i++) {
-        const id = targetIds[i];
-        const progress = Math.round(((i) / targetIds.length) * 100);
-        updateBulkStatus(`処理中 (${i+1}/${targetIds.length})...`, progress);
-        
-        try {
-            // 毎回DOMから最新の行を取得する (重要)
-            const row = document.getElementById(id);
+    // バックグラウンド風の挙動にするため、UIブロックを解除しつつ非同期で回す
+    // ただし、DOM操作を伴うため完全なバックグラウンドではないが、
+    // ユーザーは他の操作（別行のチェックなど）ができるようになる
+    
+    (async () => {
+        for (let i = 0; i < targetIds.length; i++) {
+            // 処理中断フラグなどが必要ならここにチェックを入れる
             
-            if (!row) {
-                console.error(`Row with id ${id} not found (likely filtered out or page changed)`);
-                failCount++;
-                continue;
-            }
-
-            let lSuccess = true;
-            let mSuccess = true;
+            const id = targetIds[i];
+            const progress = Math.round(((i) / targetIds.length) * 100);
+            updateBulkStatus(`処理中 (${i+1}/${targetIds.length}) - ${successCount}件完了`, progress);
             
-            // 大項目変更
-            if (lVal) {
-                lSuccess = await clickDropdownItem(row, '.lctg', lVal);
-                if (lSuccess) {
-                    // DOM更新待機 (テーブル全体を監視)
-                    const table = document.getElementById('cf-detail-table');
-                    if (table) await waitForDomChange(table, 3000);
-                    else await new Promise(r => setTimeout(r, 1500));
-                }
-            }
-            
-            // 行が書き換わっている可能性があるため、中項目変更前にもう一度取得を試みる
-            // (rowはDOMから外れている可能性があるため、IDで再取得必須)
-            const refreshedRow = document.getElementById(id);
-
-            // 中項目変更
-            if (mVal && lSuccess && refreshedRow) {
-                mSuccess = await clickDropdownItem(refreshedRow, '.mctg', mVal);
-                if (mSuccess) {
-                    const table = document.getElementById('cf-detail-table');
-                    if (table) await waitForDomChange(table, 3000);
-                    else await new Promise(r => setTimeout(r, 1500));
-                }
-            }
-            
-            if (lSuccess && mSuccess) {
-                successCount++;
-                // 成功したら最新のDOMのチェックボックスを外す
-                const freshCb = (document.getElementById(id) || row).querySelector('.mf-ext-row-checkbox');
-                if (freshCb) freshCb.checked = false;
+            try {
+                // 毎回DOMから最新の行を取得する (重要)
+                const row = document.getElementById(id);
                 
-                const finalRow = document.getElementById(id) || row;
-                if (finalRow) finalRow.style.backgroundColor = '#e8f5e9';
-            } else {
+                if (!row) {
+                    // DOMから消えている場合は失敗としてスキップ
+                    failCount++;
+                    continue;
+                }
+
+                // 行の背景色を変えて「処理中」であることを示す
+                row.style.backgroundColor = '#fdf2e9'; // 薄いオレンジ
+
+                let lSuccess = true;
+                let mSuccess = true;
+                
+                // 大項目変更
+                if (lVal) {
+                    lSuccess = await clickDropdownItem(row, '.lctg', lVal);
+                    if (lSuccess) {
+                        // テーブル更新待機
+                        const table = document.getElementById('cf-detail-table');
+                        if (table) await waitForDomChange(table, 3000);
+                        else await new Promise(r => setTimeout(r, 1000));
+                    }
+                }
+                
+                // 行再取得
+                const refreshedRow = document.getElementById(id);
+
+                // 中項目変更
+                if (mVal && lSuccess && refreshedRow) {
+                    mSuccess = await clickDropdownItem(refreshedRow, '.mctg', mVal);
+                    if (mSuccess) {
+                        const table = document.getElementById('cf-detail-table');
+                        if (table) await waitForDomChange(table, 3000);
+                        else await new Promise(r => setTimeout(r, 1000));
+                    }
+                }
+                
+                if (lSuccess && mSuccess) {
+                    successCount++;
+                    const finalRow = document.getElementById(id);
+                    if (finalRow) {
+                        finalRow.style.backgroundColor = '#e8f5e9'; // 成功: 薄い緑
+                        const cb = finalRow.querySelector('.mf-ext-row-checkbox');
+                        if (cb) cb.checked = false; // チェックを外す
+                    }
+                } else {
+                    failCount++;
+                    const finalRow = document.getElementById(id);
+                    if (finalRow) finalRow.style.backgroundColor = '#ffebee'; // 失敗: 薄い赤
+                }
+                
+            } catch (e) {
+                console.error(e);
                 failCount++;
-                const finalRow = document.getElementById(id) || row;
-                if (finalRow) finalRow.style.backgroundColor = '#ffebee';
             }
             
-        } catch (e) {
-            console.error(e);
-            failCount++;
+            // 負荷分散のための微小ウェイト
+            await new Promise(r => setTimeout(r, 100));
         }
         
-        // 連続処理の安定化のための待機
-        await new Promise(r => setTimeout(r, 500));
-    }
-    
-    updateBulkStatus(`完了: 成功${successCount} / 失敗${failCount}`, 100);
-    updateSelectedCount();
-    
-    isProcessing = false;
-    document.getElementById('mf-apply-categories').disabled = false;
+        updateBulkStatus(`完了: 成功${successCount} / 失敗${failCount}`, 100);
+        updateSelectedCount();
+        
+        isProcessing = false;
+        document.getElementById('mf-apply-categories').disabled = false;
+        document.getElementById('mf-apply-categories').textContent = '選択した項目に適用';
+        
+        // 完了通知（トースト表示などが望ましいが、現状はステータスバーのみで対応）
+    })();
+
+    // 即座にコントロールを返す
+    document.getElementById('mf-apply-categories').textContent = '処理中...';
+    // isProcessing = false; // 呼び出し元での重複防止ロックは維持したいが、UI操作は許可したい...
+    // ここでは isProcessing は async 関数内で完了時に解除する設計にする
+
 }
 
 // ドロップダウンをクリックして項目を選択する関数

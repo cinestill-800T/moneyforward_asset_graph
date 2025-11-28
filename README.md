@@ -3,7 +3,7 @@
 マネーフォワード ME の資産推移画面から、過去の資産データを一括で取得・CSVダウンロード・グラフ表示する Google Chrome 拡張機能です。
 **v1.3.0 から、家計簿画面での一括カテゴリ設定機能が追加されました。**
 
-![Version](https://img.shields.io/badge/version-1.3.5-blue.svg)
+![Version](https://img.shields.io/badge/version-1.3.6-blue.svg)
 
 ## ✨ 主な機能
 
