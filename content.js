@@ -1,5 +1,5 @@
 // グローバル変数
-const EXTENSION_VERSION = '1.3.4';
+const EXTENSION_VERSION = '1.3.5';
 let isProcessing = false;
 let globalChart = null; // Chart.js インスタンス保持用
 let lastFetchedData = null; // 最後に取得したデータを保持
@@ -941,6 +941,7 @@ function initHouseholdBookEnhancement() {
     if (table) {
         // 初期ロード時の処理
         addCheckboxesToTable();
+        createCategoryBulkPanel(); // テーブルがある場合のみパネル生成
         observer.observe(table, { childList: true, subtree: true });
     } else {
         // テーブルがまだない場合はbodyを監視してテーブル出現を待つ
@@ -948,6 +949,7 @@ function initHouseholdBookEnhancement() {
             const t = document.getElementById('cf-detail-table');
             if (t) {
                 addCheckboxesToTable();
+                createCategoryBulkPanel(); // 出現時にパネル生成
                 observer.observe(t, { childList: true, subtree: true });
                 bodyObserver.disconnect();
             }
@@ -955,7 +957,7 @@ function initHouseholdBookEnhancement() {
         bodyObserver.observe(document.body, { childList: true, subtree: true });
     }
     
-    createCategoryBulkPanel();
+    // createCategoryBulkPanel(); // ここでの無条件呼び出しを削除
 }
 
 function handleTableMutation(mutations) {
@@ -1087,6 +1089,12 @@ function createCategoryBulkPanel() {
         panel.classList.toggle('mf-minimized');
         const isMinimized = panel.classList.contains('mf-minimized');
         
+        // JSで強制的に表示制御（CSSが効かない場合への対策）
+        const body = panel.querySelector('.mf-panel-body');
+        if (body) {
+            body.style.display = isMinimized ? 'none' : 'block';
+        }
+
         if (isMinimized) {
             toggleBtn.title = "展開する";
             toggleBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>`;
@@ -1111,6 +1119,30 @@ function updateBulkStatus(text, progress = 0) {
     if (statusEl) statusEl.textContent = text;
     if (percentEl) percentEl.textContent = `${progress}%`;
     if (barEl) barEl.style.width = `${progress}%`;
+}
+
+// ヘルパー：DOM変更待機（指定した要素に変更があるまで待つ、またはタイムアウト）
+function waitForDomChange(targetNode, timeout = 3000) {
+    return new Promise((resolve) => {
+        let resolved = false;
+        const observer = new MutationObserver((mutations) => {
+            if (!resolved) {
+                resolved = true;
+                observer.disconnect();
+                resolve(true);
+            }
+        });
+        observer.observe(targetNode, { childList: true, subtree: true, attributes: true });
+        
+        // タイムアウト（変更がなくても先に進む）
+        setTimeout(() => {
+            if (!resolved) {
+                resolved = true;
+                observer.disconnect();
+                resolve(false); // タイムアウト
+            }
+        }, timeout);
+    });
 }
 
 function makePanelDraggable(panel) {
@@ -1176,35 +1208,45 @@ function clearSelection() {
 }
 
 function loadCategoryOptions() {
-    // MoneyForwardのフィルタ用セレクトボックスからカテゴリを取得する
-    // 0番目が大項目フィルタ、1番目が中項目フィルタになっていることが多い
-    const selects = document.querySelectorAll('select.js-table-autofilter-select');
-    
-    if (selects.length >= 2) {
-        // 大項目
-        const lTarget = document.getElementById('mf-bulk-large-category');
-        const lOptions = selects[0].querySelectorAll('option');
-        lOptions.forEach(opt => {
-            if (opt.value) { // "全て"などを除外
-                const o = document.createElement('option');
-                o.value = opt.textContent.trim(); // valueではなく表示名を使う（マッチング用）
-                o.textContent = opt.textContent.trim();
-                lTarget.appendChild(o);
-            }
-        });
-        
-        // 中項目（注：大項目によってフィルタされる前の全量が取れるかは不明だが、取れる範囲で取る）
-        const mTarget = document.getElementById('mf-bulk-middle-category');
-        const mOptions = selects[1].querySelectorAll('option');
-        mOptions.forEach(opt => {
-             if (opt.value) {
-                const o = document.createElement('option');
-                o.value = opt.textContent.trim();
-                o.textContent = opt.textContent.trim();
-                mTarget.appendChild(o);
-            }
-        });
+    const lTarget = document.getElementById('mf-bulk-large-category');
+    const mTarget = document.getElementById('mf-bulk-middle-category');
+
+    // 1. 家計簿入力フォーム（隠し要素含む）から全カテゴリを取得を試みる
+    // MoneyForwardの一般的な構造: select.large_category, select.middle_category
+    let lOptions = document.querySelectorAll('select.large_category option');
+    let mOptions = document.querySelectorAll('select.middle_category option');
+
+    // なければ、IDでの検索を試行
+    if (lOptions.length === 0) lOptions = document.querySelectorAll('#js-large-category-select option');
+    if (mOptions.length === 0) mOptions = document.querySelectorAll('#js-middle-category-select option');
+
+    // それでもなければ、既存のフィルタ用セレクトボックスから取得（フォールバック - 表示中の行のみになる）
+    if (lOptions.length === 0) {
+        const selects = document.querySelectorAll('select.js-table-autofilter-select');
+        if (selects.length >= 2) {
+            lOptions = selects[0].querySelectorAll('option');
+            mOptions = selects[1].querySelectorAll('option');
+        }
     }
+
+    // ヘルパー：オプション追加
+    const addOptions = (sourceOptions, targetSelect) => {
+        const seen = new Set();
+        sourceOptions.forEach(opt => {
+            const text = opt.textContent.trim();
+            // "全て"や空の値を除外
+            if (opt.value && text && text !== '全て' && !seen.has(text)) {
+                const o = document.createElement('option');
+                o.value = text; // valueではなく表示名を使う（マッチング用）
+                o.textContent = text;
+                targetSelect.appendChild(o);
+                seen.add(text);
+            }
+        });
+    };
+
+    if (lOptions.length > 0) addOptions(lOptions, lTarget);
+    if (mOptions.length > 0) addOptions(mOptions, mTarget);
 }
 
 async function applyCategoriesToSelected() {
@@ -1272,18 +1314,26 @@ async function applyCategoriesToSelected() {
             // 大項目変更
             if (lVal) {
                 lSuccess = await clickDropdownItem(row, '.lctg', lVal);
-                // MoneyForwardは1回の変更でAjaxが走り、行が書き換わる可能性があるため
-                // しっかり待機する。書き換わった場合は次の行取得(row)が重要になる。
-                await new Promise(r => setTimeout(r, 1200)); 
+                if (lSuccess) {
+                    // DOM更新待機 (テーブル全体を監視)
+                    const table = document.getElementById('cf-detail-table');
+                    if (table) await waitForDomChange(table, 3000);
+                    else await new Promise(r => setTimeout(r, 1500));
+                }
             }
             
             // 行が書き換わっている可能性があるため、中項目変更前にもう一度取得を試みる
-            const refreshedRow = document.getElementById(id) || row;
+            // (rowはDOMから外れている可能性があるため、IDで再取得必須)
+            const refreshedRow = document.getElementById(id);
 
             // 中項目変更
-            if (mVal && lSuccess) {
+            if (mVal && lSuccess && refreshedRow) {
                 mSuccess = await clickDropdownItem(refreshedRow, '.mctg', mVal);
-                await new Promise(r => setTimeout(r, 1200)); 
+                if (mSuccess) {
+                    const table = document.getElementById('cf-detail-table');
+                    if (table) await waitForDomChange(table, 3000);
+                    else await new Promise(r => setTimeout(r, 1500));
+                }
             }
             
             if (lSuccess && mSuccess) {
@@ -1331,21 +1381,25 @@ async function clickDropdownItem(row, cellSelector, targetText) {
     // 1. ドロップダウンを開く
     toggleBtn.click();
     
-    // 2. メニューが表示されるのを少し待つ
-    // 通信環境によってはメニュー生成に時間がかかる場合があるためリトライを入れるとより堅牢
-    await new Promise(r => setTimeout(r, 300));
-    
-    // 3. メニュー項目を探してクリック
-    // MoneyForwardの実装では、tdの中に .dropdown-menu が生成されるか、隠れているか
-    // 開いた瞬間にDOM構造が変わる可能性があるため、cell内で検索する
-    const menu = cell.querySelector('.dropdown-menu');
-    if (!menu || menu.style.display === 'none') {
+    // 2. メニューが表示されるのを待つ (最大1秒、100ms毎チェック)
+    let menu = null;
+    for (let i = 0; i < 10; i++) {
+        menu = cell.querySelector('.dropdown-menu');
+        // MoneyForwardは .open クラスで制御していることが多い
+        const isOpen = cell.classList.contains('open') || (menu && menu.style.display !== 'none');
+        
+        if (menu && isOpen) break;
+        await new Promise(r => setTimeout(r, 100));
+    }
+
+    if (!menu) {
         // 開けなかった、またはメニューがない
         // もう一度クリックして閉じておく（トグルなので）
         toggleBtn.click(); 
         return false;
     }
     
+    // 3. メニュー項目を探してクリック
     const links = menu.querySelectorAll('a');
     let targetLink = null;
     
