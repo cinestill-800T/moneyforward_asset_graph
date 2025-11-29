@@ -1,5 +1,5 @@
 // グローバル変数
-const EXTENSION_VERSION = '1.3.6';
+const EXTENSION_VERSION = '1.3.7';
 let isProcessing = false;
 let globalChart = null; // Chart.js インスタンス保持用
 let lastFetchedData = null; // 最後に取得したデータを保持
@@ -933,11 +933,11 @@ function copyGraphData() {
 
 function initHouseholdBookEnhancement() {
     console.log('MoneyForward Enhancer: Household Book Enhancement Started');
-    
+
     // 監視開始 (非同期で読み込まれる行に対応)
     const observer = new MutationObserver(handleTableMutation);
     const table = document.getElementById('cf-detail-table');
-    
+
     if (table) {
         // 初期ロード時の処理
         addCheckboxesToTable();
@@ -956,7 +956,7 @@ function initHouseholdBookEnhancement() {
         });
         bodyObserver.observe(document.body, { childList: true, subtree: true });
     }
-    
+
     // createCategoryBulkPanel(); // ここでの無条件呼び出しを削除
 }
 
@@ -985,7 +985,7 @@ function addCheckboxesToTable() {
         th.style.width = '30px';
         th.innerHTML = '<input type="checkbox" id="mf-toggle-all-rows" title="全て選択/解除">';
         theadRow.prepend(th);
-        
+
         // 全選択イベント
         document.getElementById('mf-toggle-all-rows').addEventListener('change', (e) => {
             const checked = e.target.checked;
@@ -1005,15 +1005,18 @@ function addCheckboxesToTable() {
             td.className = 'mf-ext-row-cell';
             td.style.textAlign = 'center';
             td.style.verticalAlign = 'middle';
-            
+
             // 未分類かどうか判定してマークを付けるなどしても良いが、シンプルにチェックボックスのみ
             td.innerHTML = '<input type="checkbox" class="mf-ext-row-checkbox">';
             row.prepend(td);
-            
+
             // クリックイベントでカウント更新
             td.querySelector('input').addEventListener('change', updateSelectedCount);
         }
     });
+
+    // ソート機能の初期化
+    initTableSorting();
 }
 
 function createCategoryBulkPanel() {
@@ -1088,7 +1091,7 @@ function createCategoryBulkPanel() {
     // イベントリスナー
     document.getElementById('mf-clear-selection').addEventListener('click', clearSelection);
     document.getElementById('mf-apply-categories').addEventListener('click', applyCategoriesToSelected);
-    
+
     // 大項目表示切替
     const lContainer = document.getElementById('mf-large-category-container');
     const lToggle = document.getElementById('mf-toggle-large-category');
@@ -1096,13 +1099,13 @@ function createCategoryBulkPanel() {
         const isHidden = lContainer.style.display === 'none';
         lContainer.style.display = isHidden ? 'block' : 'none';
     });
-    
+
     // パネル開閉（資産推移パネルと同じロジックに統一）
     const toggleBtn = document.getElementById('mf-panel-toggle-btn');
     toggleBtn.addEventListener('click', () => {
         panel.classList.toggle('mf-minimized');
         const isMinimized = panel.classList.contains('mf-minimized');
-        
+
         // JSで強制的に表示制御（CSSが効かない場合への対策）
         const body = panel.querySelector('.mf-panel-body');
         if (body) {
@@ -1147,7 +1150,7 @@ function waitForDomChange(targetNode, timeout = 3000) {
             }
         });
         observer.observe(targetNode, { childList: true, subtree: true, attributes: true });
-        
+
         // タイムアウト（変更がなくても先に進む）
         setTimeout(() => {
             if (!resolved) {
@@ -1167,34 +1170,34 @@ function makePanelDraggable(panel) {
     header.addEventListener('mousedown', (e) => {
         // ボタンのクリック時はドラッグしない
         if (e.target.closest('.mf-header-btn')) return;
-        
+
         isDragging = true;
         startX = e.clientX;
         startY = e.clientY;
-        
+
         // getComputedStyleで現在の位置を取得（bottom/right指定の場合は変換が必要）
         const rect = panel.getBoundingClientRect();
-        
+
         // 固定配置(bottom/right)から絶対配置(top/left)へ移行してスムーズに動かす
         // 一度動かしたら bottom/right 指定は解除する
         panel.style.bottom = 'auto';
         panel.style.right = 'auto';
         panel.style.left = `${rect.left}px`;
         panel.style.top = `${rect.top}px`;
-        
+
         initialLeft = rect.left;
         initialTop = rect.top;
-        
+
         document.body.style.userSelect = 'none'; // テキスト選択防止
         header.style.cursor = 'grabbing';
     });
 
     document.addEventListener('mousemove', (e) => {
         if (!isDragging) return;
-        
+
         const dx = e.clientX - startX;
         const dy = e.clientY - startY;
-        
+
         panel.style.left = `${initialLeft + dx}px`;
         panel.style.top = `${initialTop + dy}px`;
     });
@@ -1247,7 +1250,7 @@ function loadCategoryOptions() {
     const addOptions = (sourceOptions, targetSelect) => {
         const counts = {};
         const options = [];
-        
+
         // 1. 出現回数をカウント（画面上のテーブルから）
         const table = document.getElementById('cf-detail-table');
         if (table) {
@@ -1291,7 +1294,7 @@ function loadCategoryOptions() {
         options.forEach(opt => {
             if (!seen.has(opt.text)) {
                 const o = document.createElement('option');
-                o.value = opt.text; 
+                o.value = opt.text;
                 o.textContent = opt.text;
                 // 頻度が高いものは強調表示（オプショナル）
                 if (opt.count > 0) {
@@ -1305,16 +1308,16 @@ function loadCategoryOptions() {
 
     if (lOptions.length > 0) addOptions(lOptions, lTarget);
     if (mOptions.length > 0) addOptions(mOptions, mTarget);
-    
+
     // マッピングデータの構築 (中項目 -> 大項目)
     // ページ内の隠しselect要素などから親子関係を推測
     const categoryMap = {}; // { "中項目名": "大項目名" }
-    
+
     // js-large-category-selectの変更イベント等からマッピングを作れるとベストだが、
     // ここでは静的に解析できる範囲で作成する
     // MoneyForwardの構造上、select.middle_category の option要素には data-group 属性などで親IDが紐付いていることが多い
     // ただしサイトの実装によるため、確実なのは「現在表示されている行」からペアを学習すること
-    
+
     const learnCategoryMap = () => {
         const table = document.getElementById('cf-detail-table');
         if (!table) return;
@@ -1328,7 +1331,7 @@ function loadCategoryOptions() {
         });
     };
     learnCategoryMap();
-    
+
     // 中項目変更時に大項目を自動選択するイベント
     mTarget.addEventListener('change', (e) => {
         const selectedMiddle = e.target.value;
@@ -1347,18 +1350,18 @@ async function applyCategoriesToSelected() {
 
     const lVal = document.getElementById('mf-bulk-large-category').value;
     const mVal = document.getElementById('mf-bulk-middle-category').value;
-    
+
     if (!lVal && !mVal) {
         alert('変更する項目を選択してください');
         return;
     }
-    
+
     const checkedBoxes = document.querySelectorAll('.mf-ext-row-checkbox:checked');
     if (checkedBoxes.length === 0) {
         alert('適用する行を選択してください');
         return;
     }
-    
+
     // 1. IDリストの作成
     // DOM要素はAjax更新で無効になるため、IDで追跡する
     const targetIds = [];
@@ -1379,29 +1382,29 @@ async function applyCategoriesToSelected() {
     // 確認ポップアップを廃止して処理開始
     isProcessing = true;
     document.getElementById('mf-apply-categories').disabled = true;
-    
+
     let successCount = 0;
     let failCount = 0;
-    
+
     updateBulkStatus('処理開始...', 0);
-    
+
     // 処理開始
     // バックグラウンド風の挙動にするため、UIブロックを解除しつつ非同期で回す
     // ただし、DOM操作を伴うため完全なバックグラウンドではないが、
     // ユーザーは他の操作（別行のチェックなど）ができるようになる
-    
+
     (async () => {
         for (let i = 0; i < targetIds.length; i++) {
             // 処理中断フラグなどが必要ならここにチェックを入れる
-            
+
             const id = targetIds[i];
             const progress = Math.round(((i) / targetIds.length) * 100);
-            updateBulkStatus(`処理中 (${i+1}/${targetIds.length}) - ${successCount}件完了`, progress);
-            
+            updateBulkStatus(`処理中 (${i + 1}/${targetIds.length}) - ${successCount}件完了`, progress);
+
             try {
                 // 毎回DOMから最新の行を取得する (重要)
                 const row = document.getElementById(id);
-                
+
                 if (!row) {
                     // DOMから消えている場合は失敗としてスキップ
                     failCount++;
@@ -1413,7 +1416,7 @@ async function applyCategoriesToSelected() {
 
                 let lSuccess = true;
                 let mSuccess = true;
-                
+
                 // 大項目変更
                 if (lVal) {
                     lSuccess = await clickDropdownItem(row, '.lctg', lVal);
@@ -1424,7 +1427,7 @@ async function applyCategoriesToSelected() {
                         else await new Promise(r => setTimeout(r, 1000));
                     }
                 }
-                
+
                 // 行再取得
                 const refreshedRow = document.getElementById(id);
 
@@ -1437,7 +1440,7 @@ async function applyCategoriesToSelected() {
                         else await new Promise(r => setTimeout(r, 1000));
                     }
                 }
-                
+
                 if (lSuccess && mSuccess) {
                     successCount++;
                     const finalRow = document.getElementById(id);
@@ -1451,23 +1454,23 @@ async function applyCategoriesToSelected() {
                     const finalRow = document.getElementById(id);
                     if (finalRow) finalRow.style.backgroundColor = '#ffebee'; // 失敗: 薄い赤
                 }
-                
+
             } catch (e) {
                 console.error(e);
                 failCount++;
             }
-            
+
             // 負荷分散のための微小ウェイト
             await new Promise(r => setTimeout(r, 100));
         }
-        
+
         updateBulkStatus(`完了: 成功${successCount} / 失敗${failCount}`, 100);
         updateSelectedCount();
-        
+
         isProcessing = false;
         document.getElementById('mf-apply-categories').disabled = false;
         document.getElementById('mf-apply-categories').textContent = '選択した項目に適用';
-        
+
         // 完了通知（トースト表示などが望ましいが、現状はステータスバーのみで対応）
     })();
 
@@ -1482,24 +1485,24 @@ async function applyCategoriesToSelected() {
 async function clickDropdownItem(row, cellSelector, targetText) {
     const cell = row.querySelector(cellSelector);
     if (!cell) return false;
-    
+
     // ボタンを探す (Bootstrap dropdown toggle)
     const toggleBtn = cell.querySelector('.dropdown-toggle');
     if (!toggleBtn) return false;
-    
+
     // 現在の値がすでにターゲットと同じならスキップ
     if (toggleBtn.textContent.trim() === targetText) return true;
-    
+
     // 1. ドロップダウンを開く
     toggleBtn.click();
-    
+
     // 2. メニューが表示されるのを待つ (最大1秒、100ms毎チェック)
     let menu = null;
     for (let i = 0; i < 10; i++) {
         menu = cell.querySelector('.dropdown-menu');
         // MoneyForwardは .open クラスで制御していることが多い
         const isOpen = cell.classList.contains('open') || (menu && menu.style.display !== 'none');
-        
+
         if (menu && isOpen) break;
         await new Promise(r => setTimeout(r, 100));
     }
@@ -1507,21 +1510,21 @@ async function clickDropdownItem(row, cellSelector, targetText) {
     if (!menu) {
         // 開けなかった、またはメニューがない
         // もう一度クリックして閉じておく（トグルなので）
-        toggleBtn.click(); 
+        toggleBtn.click();
         return false;
     }
-    
+
     // 3. メニュー項目を探してクリック
     const links = menu.querySelectorAll('a');
     let targetLink = null;
-    
-    for(const link of links) {
+
+    for (const link of links) {
         if (link.textContent.trim() === targetText) {
             targetLink = link;
             break;
         }
     }
-    
+
     if (targetLink) {
         targetLink.click();
         return true;
@@ -1530,4 +1533,128 @@ async function clickDropdownItem(row, cellSelector, targetText) {
         toggleBtn.click();
         return false;
     }
+}
+
+// ==========================================
+// ソート機能 (v1.3.7)
+// ==========================================
+let currentSort = { column: -1, direction: 'asc' };
+
+function initTableSorting() {
+    const table = document.getElementById('cf-detail-table');
+    if (!table) return;
+
+    const thead = table.querySelector('thead');
+    if (!thead) return;
+
+    // ヘッダー行取得 (通常は1行目だが、念のため)
+    const headerRow = thead.querySelector('tr');
+    if (!headerRow) return;
+
+    const headers = headerRow.querySelectorAll('th');
+    headers.forEach((th, index) => {
+        // チェックボックス列と削除列は除外
+        if (th.classList.contains('mf-ext-header-cell')) return;
+        if (th.textContent.trim() === '削除') return;
+        if (th.querySelector('input')) return;
+
+        // 既に初期化済みならスキップ
+        if (th.classList.contains('mf-sortable-header')) return;
+
+        th.classList.add('mf-sortable-header');
+
+        // ソートアイコン用要素追加
+        if (!th.querySelector('.mf-sort-icon')) {
+            const icon = document.createElement('span');
+            icon.className = 'mf-sort-icon';
+            th.appendChild(icon);
+        }
+
+        th.addEventListener('click', () => sortTable(index));
+    });
+}
+
+function sortTable(columnIndex) {
+    const table = document.getElementById('cf-detail-table');
+    if (!table) return;
+    const tbody = table.querySelector('tbody');
+
+    // トランザクション行のみを取得 (日付行などが混ざる可能性は低いが、クラスでフィルタ)
+    // MoneyForwardのテーブルは tr.transaction_list がデータ行
+    const rows = Array.from(tbody.querySelectorAll('tr.transaction_list'));
+    if (rows.length === 0) return;
+
+    // ソート方向決定
+    let direction = 'asc';
+    if (currentSort.column === columnIndex && currentSort.direction === 'asc') {
+        direction = 'desc';
+    }
+    currentSort = { column: columnIndex, direction: direction };
+
+    // ヘッダー表示更新
+    const headers = table.querySelectorAll('thead th');
+    headers.forEach((th, idx) => {
+        th.classList.remove('mf-sort-asc', 'mf-sort-desc');
+        if (idx === columnIndex) {
+            th.classList.add(direction === 'asc' ? 'mf-sort-asc' : 'mf-sort-desc');
+        }
+    });
+
+    // ソート実行
+    rows.sort((a, b) => {
+        // 列インデックスに対応するセルを取得
+        // 行によってセル数が違うケースは稀だが、念のためチェック
+        const cellA = a.children[columnIndex];
+        const cellB = b.children[columnIndex];
+
+        const textA = cellA ? cellA.textContent.trim() : '';
+        const textB = cellB ? cellB.textContent.trim() : '';
+
+        // 1. 金額判定 (カンマ除去して数値化できるか)
+        const numA = parseAmount(textA);
+        const numB = parseAmount(textB);
+
+        if (numA !== null && numB !== null) {
+            return direction === 'asc' ? numA - numB : numB - numA;
+        }
+
+        // 2. 日付判定 (MM/DD)
+        const dateA = parseDate(textA);
+        const dateB = parseDate(textB);
+        if (dateA !== null && dateB !== null) {
+            return direction === 'asc' ? dateA - dateB : dateB - dateA;
+        }
+
+        // 3. 文字列比較 (日本語ロケール)
+        return direction === 'asc' ? textA.localeCompare(textB, 'ja') : textB.localeCompare(textA, 'ja');
+    });
+
+    // 並び替え反映 (appendChildは既存要素を移動させる)
+    // フラグメントを使って再描画を一度にする
+    const fragment = document.createDocumentFragment();
+    rows.forEach(row => fragment.appendChild(row));
+    tbody.appendChild(fragment);
+}
+
+function parseAmount(str) {
+    // "1,200", "-300", "0", "¥1,000" などを数値化
+    // 空文字や "計算対象" などのテキストは null
+    if (!str) return null;
+    const clean = str.replace(/[¥,,\s]/g, '');
+    if (clean === '') return null;
+    if (/^-?\d+$/.test(clean)) {
+        return parseInt(clean, 10);
+    }
+    return null;
+}
+
+function parseDate(str) {
+    // "11/29(土)" -> Date
+    if (!str) return null;
+    const match = str.match(/(\d+)\/(\d+)/);
+    if (match) {
+        // 年は考慮せず月日で比較 (2000年とする)
+        return new Date(2000, parseInt(match[1], 10) - 1, parseInt(match[2], 10));
+    }
+    return null;
 }

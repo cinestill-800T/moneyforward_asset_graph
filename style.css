@@ -537,3 +537,36 @@
     transform: scale(1.2);
     cursor: pointer;
 }
+
+/* Sorting Styles */
+.mf-sortable-header {
+    cursor: pointer;
+    position: relative;
+    user-select: none;
+    transition: background-color 0.2s;
+}
+
+.mf-sortable-header:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+.mf-sort-icon {
+    display: inline-block;
+    margin-left: 5px;
+    width: 0;
+    height: 0;
+    vertical-align: middle;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    opacity: 0.3;
+}
+
+.mf-sort-asc .mf-sort-icon {
+    border-bottom: 4px solid currentColor;
+    opacity: 1;
+}
+
+.mf-sort-desc .mf-sort-icon {
+    border-top: 4px solid currentColor;
+    opacity: 1;
+}
