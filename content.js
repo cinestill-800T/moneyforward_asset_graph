@@ -1,5 +1,7 @@
 // グローバル変数
-const EXTENSION_VERSION = '1.3.7';
+const EXTENSION_VERSION = '1.3.8';
+console.log('MoneyForward Enhancer: Script Loaded v' + EXTENSION_VERSION); // 最優先でログ出力
+
 let isProcessing = false;
 let globalChart = null; // Chart.js インスタンス保持用
 let lastFetchedData = null; // 最後に取得したデータを保持
@@ -53,14 +55,23 @@ if (!document.title.includes('[Ext v')) {
 }
 
 // ページ判定と初期化
-initPage();
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initPage);
+} else {
+    initPage();
+}
 
 function initPage() {
+    console.log('MoneyForward Enhancer: initPage called');
     const path = window.location.pathname;
+    console.log('Current path:', path);
 
     if (path.startsWith('/bs/history')) {
         // 資産推移画面
         createPanel();
+    } else if (path.startsWith('/bs/portfolio')) {
+        // ポートフォリオ画面
+        initPortfolioEnhancement();
     } else if (path.startsWith('/cf') || path === '/') {
         // 家計簿画面
         initHouseholdBookEnhancement();
@@ -189,8 +200,9 @@ function createPanel() {
             </svg>
             全日次データをCSV保存
         </button>
+    </div>
 
-        <div style="margin-top: 15px; padding-top: 15px; border-top: 1px dashed #dfe6e9;">
+      <div style="margin-top: 15px; padding-top: 15px; border-top: 1px dashed #dfe6e9;">
             <div class="mf-control-group" style="margin-bottom: 10px; justify-content: space-between;">
                 <span style="font-size:13px; font-weight:bold; color:#636e72;">指定日のみ抽出:</span>
                 <div style="display:flex; align-items:center; gap:5px;">
@@ -451,7 +463,7 @@ async function fetchData(years, onProgress) {
         let allCsvRows = [];
         let headers = [];
 
-        const BATCH_SIZE = 50;
+        const BATCH_SIZE = 6; // ブラウザの同時接続数制限を考慮して調整 (以前は50)
         for (let i = 0; i < tasks.length; i += BATCH_SIZE) {
             const batch = tasks.slice(i, i + BATCH_SIZE);
             const progress = Math.round(((i + 1) / tasks.length) * 100);
@@ -806,14 +818,63 @@ function drawChartCanvas(labels, headers, rows, isStacked) {
         });
     }
 
+    // データラベル表示プラグイン (データ点数が少ない場合のみ表示)
+    const dataLabelPlugin = {
+        id: 'dataLabelPlugin',
+        afterDatasetsDraw: (chart) => {
+            const { ctx, data } = chart;
+            const DATA_LABEL_THRESHOLD = 20;
+
+            // データ点数が閾値より多い場合は表示しない
+            if (data.labels.length > DATA_LABEL_THRESHOLD) return;
+
+            ctx.save();
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'bottom';
+            ctx.font = 'bold 10px "Helvetica Neue", Arial, sans-serif';
+
+            chart.data.datasets.forEach((dataset, i) => {
+                const meta = chart.getDatasetMeta(i);
+                if (meta.hidden) return;
+
+                meta.data.forEach((element, index) => {
+                    const value = dataset.data[index];
+                    if (value === null || value === undefined) return;
+
+                    // フォーマット (Y軸のロジックに合わせる)
+                    let text = '';
+                    if (value >= 100000000) text = (value / 100000000).toFixed(1) + '億';
+                    else if (value >= 10000) text = (value / 10000).toFixed(0) + '万';
+                    else text = value.toLocaleString();
+
+                    const { x, y } = element.tooltipPosition();
+                    
+                    // 色はデータセットの色を使用、ただし視認性のため少し暗くする調整を入れても良いが
+                    // シンプルにデータセットの色を使う
+                    ctx.fillStyle = dataset.borderColor || '#636e72';
+                    
+                    // ドットの少し上に描画
+                    ctx.fillText(text, x, y - 6);
+                });
+            });
+            ctx.restore();
+        }
+    };
+
     globalChart = new Chart(ctx, {
         type: 'line',
         data: { labels, datasets },
+        plugins: [dataLabelPlugin], // プラグイン登録
         options: {
             responsive: true,
             maintainAspectRatio: false,
             interaction: { mode: 'index', intersect: false },
             stacked: isStacked,
+            layout: {
+                padding: {
+                    top: 20 // ラベルが見切れないように上部に余白追加
+                }
+            },
             plugins: {
                 title: { display: true, text: isStacked ? '資産推移（内訳）' : '資産推移（合計）', font: { size: 16 }, color: currentTheme.color1 },
                 tooltip: {
@@ -928,6 +989,432 @@ function copyGraphData() {
 
 
 // ===========================================================================
+// ポートフォリオ画面拡張 (v1.3.8) - 資産構成分析 & ヒートマップ
+// ===========================================================================
+
+function initPortfolioEnhancement() {
+    console.log('MoneyForward Enhancer: Portfolio Enhancement Started');
+    createPortfolioPanel();
+}
+
+function createPortfolioPanel() {
+    const existing = document.getElementById('mf-portfolio-panel');
+    if (existing) existing.remove();
+
+    const panel = document.createElement('div');
+    panel.id = 'mf-portfolio-panel';
+    
+    // 既存のスタイルを流用しつつ、右上に固定
+    panel.style.position = 'fixed';
+    panel.style.top = '80px';
+    panel.style.right = '20px';
+    panel.style.zIndex = '9999';
+    panel.style.background = '#fff';
+    panel.style.padding = '10px';
+    panel.style.borderRadius = '8px';
+    panel.style.boxShadow = '0 4px 15px rgba(0,0,0,0.15)';
+    panel.style.border = '1px solid #dfe6e9';
+    panel.style.display = 'flex';
+    panel.style.gap = '10px';
+    panel.style.alignItems = 'center';
+
+    panel.innerHTML = `
+        <div style="font-size:13px; font-weight:bold; color:#2d3436;">
+            <span style="color:#009688;">●</span> ポートフォリオ分析
+        </div>
+        <button id="btn-show-portfolio-viz" class="mf-btn mf-btn-primary" style="padding: 6px 12px; font-size: 12px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px;">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="3" y1="9" x2="21" y2="9"></line>
+                <line x1="9" y1="21" x2="9" y2="9"></line>
+            </svg>
+            ビジュアライザーを開く
+        </button>
+    `;
+
+    document.body.appendChild(panel);
+
+    document.getElementById('btn-show-portfolio-viz').addEventListener('click', showPortfolioModal);
+}
+
+// DOMから保有資産データを抽出する
+function extractPortfolioData() {
+    const data = [];
+    
+    // 1. 株式（現物）
+    const stockTable = findTableBySectionName('株式（現物）');
+    if (stockTable) {
+        const rows = stockTable.querySelectorAll('tbody tr');
+        rows.forEach(row => {
+            const name = row.children[1]?.textContent.trim(); // 銘柄名
+            const currentPrice = parseAmount(row.children[4]?.textContent); // 評価額
+            const profit = parseAmount(row.children[6]?.textContent); // 評価損益
+            const profitPercent = parseFloat(row.children[7]?.textContent.replace('%', '')); // 評価損益率
+            
+            if (name && currentPrice !== null) {
+                data.push({
+                    type: 'stock',
+                    name: name,
+                    value: currentPrice,
+                    profit: profit,
+                    profitPercent: profitPercent,
+                    color: null // 後で計算
+                });
+            }
+        });
+    }
+
+    // 2. 投資信託
+    const fundTable = findTableBySectionName('投資信託');
+    if (fundTable) {
+        const rows = fundTable.querySelectorAll('tbody tr');
+        rows.forEach(row => {
+            const name = row.children[0]?.textContent.trim(); // 銘柄名
+            const currentPrice = parseAmount(row.children[4]?.textContent); // 評価額
+            const profit = parseAmount(row.children[6]?.textContent); // 評価損益
+            const profitPercent = parseFloat(row.children[7]?.textContent.replace('%', '')); // 評価損益率
+
+            if (name && currentPrice !== null) {
+                data.push({
+                    type: 'fund',
+                    name: name,
+                    value: currentPrice,
+                    profit: profit,
+                    profitPercent: profitPercent,
+                    color: null
+                });
+            }
+        });
+    }
+
+    // 3. 現金・預金（参考用）
+    // 4. ポイントなど
+    // ※一旦、ポートフォリオ分析は「株式・投信」などのリスク資産を中心に可視化する方針とする
+
+    return data.sort((a, b) => b.value - a.value); // 評価額順
+}
+
+function findTableBySectionName(name) {
+    const headings = document.querySelectorAll('h1, h2, h3, .heading-title'); // マネーフォワードのDOM構造に合わせる
+    for (const h of headings) {
+        if (h.textContent.includes(name)) {
+            // ヘッダーの親要素からテーブルを探す
+            // セクション構造が変わる可能性があるため、直近のtableを探す
+            let container = h.parentElement;
+            while (container && container.tagName !== 'BODY') {
+                const table = container.querySelector('table');
+                if (table) return table;
+                container = container.nextElementSibling || container.parentElement;
+                 // nextElementSiblingで兄弟要素（セクション内コンテンツ）を探す
+            }
+        }
+    }
+    // 見つからない場合、全テーブルからヘッダー列名で推測するなどのフォールバックが必要だが、
+    // 現状は特定クラス (table.table-bordered 等) で絞る
+    return null;
+}
+
+function showPortfolioModal() {
+    const data = extractPortfolioData();
+    if (data.length === 0) {
+        alert('株式・投資信託のデータが見つかりませんでした。');
+        return;
+    }
+
+    // モーダル生成
+    const existing = document.getElementById('mf-portfolio-modal');
+    if (existing) existing.remove();
+
+    const modal = document.createElement('div');
+    modal.id = 'mf-portfolio-modal';
+    modal.className = 'mf-modal-overlay';
+
+    modal.innerHTML = `
+        <div class="mf-modal-content" style="width: 90%; height: 90%; max-width: 1200px; display:flex; flex-direction:column;">
+            <div class="mf-modal-header">
+                <div class="mf-modal-title">ポートフォリオ分析 <span style="font-size:12px; font-weight:normal; opacity:0.7;">Beta</span></div>
+                <button class="mf-modal-btn mf-modal-btn-close" id="mf-portfolio-close">×</button>
+            </div>
+            <div class="mf-modal-body" style="flex:1; display:flex; gap:20px; padding:20px; overflow:hidden;">
+                <!-- 左側: ツリーマップ（ヒートマップ） -->
+                <div style="flex:2; display:flex; flex-direction:column; min-width:0;">
+                    <div style="font-weight:bold; margin-bottom:10px; color:#636e72;">資産ヒートマップ (評価額 × 損益率)</div>
+                    <div id="mf-treemap-container" style="flex:1; position:relative; background:#f9f9f9; border:1px solid #eee; border-radius:4px;">
+                        <!-- Treemap Canvas -->
+                        <canvas id="mf-treemap-canvas"></canvas>
+                    </div>
+                    <div style="display:flex; justify-content:center; margin-top:10px; gap:15px; font-size:11px; color:#636e72;">
+                        <div style="display:flex; align-items:center; gap:5px;"><span style="width:12px; height:12px; background:#27ae60;"></span>+10%以上</div>
+                        <div style="display:flex; align-items:center; gap:5px;"><span style="width:12px; height:12px; background:#a9dfbf;"></span>+0%〜</div>
+                        <div style="display:flex; align-items:center; gap:5px;"><span style="width:12px; height:12px; background:#f5b7b1;"></span>-0%〜</div>
+                        <div style="display:flex; align-items:center; gap:5px;"><span style="width:12px; height:12px; background:#c0392b;"></span>-10%以下</div>
+                    </div>
+                </div>
+
+                <!-- 右側: 円グラフ & リスト -->
+                <div style="flex:1; display:flex; flex-direction:column; min-width:300px; border-left:1px dashed #ddd; padding-left:20px;">
+                    <div style="height: 40%; min-height:250px; position:relative; margin-bottom:20px;">
+                        <div style="font-weight:bold; margin-bottom:10px; color:#636e72;">構成比率 (Top 10)</div>
+                        <canvas id="mf-portfolio-pie"></canvas>
+                    </div>
+                    <div style="flex:1; overflow-y:auto; border-top:1px dashed #ddd; padding-top:10px;">
+                        <div style="font-weight:bold; margin-bottom:10px; color:#636e72;">成績ランキング (損益額)</div>
+                        <table class="mf-simple-table" style="width:100%; font-size:12px; border-collapse:collapse;">
+                            <thead style="border-bottom:1px solid #ddd;">
+                                <tr>
+                                    <th style="text-align:left; padding:4px;">銘柄</th>
+                                    <th style="text-align:right; padding:4px;">評価額</th>
+                                    <th style="text-align:right; padding:4px;">損益</th>
+                                </tr>
+                            </thead>
+                            <tbody id="mf-ranking-tbody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    // イベント設定
+    document.getElementById('mf-portfolio-close').addEventListener('click', () => {
+        modal.remove();
+        // Chartインスタンスの破棄などは自動で行われないため、再生成時に注意が必要だが、DOM削除でCanvasも消えるので基本OK
+    });
+
+    // 描画実行
+    drawTreemap(data);
+    drawPieChart(data);
+    renderRanking(data);
+}
+
+function drawTreemap(data) {
+    // Chart.jsのTreemapプラグインは標準では入っていないため、
+    // ここでは簡易的な「長方形分割アルゴリズム」を自前で実装してCanvasに描画する
+    // または、Chart.jsは使わずにDIV要素の絶対配置で実装する方が簡単でインタラクティブ
+
+    const container = document.getElementById('mf-treemap-container');
+    container.innerHTML = ''; // Canvas削除してDIVベースにする
+
+    // データの正規化（合計値を100%とする）
+    const totalValue = data.reduce((sum, item) => sum + item.value, 0);
+    
+    // コンテナサイズ
+    const width = container.clientWidth;
+    const height = container.clientHeight;
+
+    // 簡易Squarified Treemapアルゴリズム風の実装
+    // 再帰的に分割していく
+    
+    // まずデータを面積比でソート
+    let items = data.map(d => ({
+        ...d,
+        area: (d.value / totalValue) * (width * height)
+    })).sort((a, b) => b.area - a.area);
+
+    // 描画領域
+    const rects = calculateTreemapRects(items, 0, 0, width, height);
+
+    rects.forEach(rect => {
+        const div = document.createElement('div');
+        div.style.position = 'absolute';
+        div.style.left = `${rect.x}px`;
+        div.style.top = `${rect.y}px`;
+        div.style.width = `${rect.w}px`;
+        div.style.height = `${rect.h}px`;
+        div.style.border = '1px solid #fff';
+        div.style.boxSizing = 'border-box';
+        div.style.overflow = 'hidden';
+        div.style.padding = '4px';
+        div.style.display = 'flex';
+        div.style.flexDirection = 'column';
+        div.style.justifyContent = 'center';
+        div.style.alignItems = 'center';
+        div.style.color = '#fff';
+        div.style.fontSize = rect.area < 5000 ? '10px' : '12px'; // 小さい領域は文字小さく
+        div.style.textShadow = '0 1px 2px rgba(0,0,0,0.3)';
+        div.style.transition = 'transform 0.2s';
+        
+        // 背景色決定（損益率に基づくヒートマップ）
+        // 緑: 利益, 赤: 損失
+        const p = rect.data.profitPercent;
+        let bgColor;
+        if (p >= 0) {
+            // 0% ~ 20% で緑を濃くする
+            const intensity = Math.min(p / 20, 1);
+            // #2ecc71 (Base Green)
+            // 薄い緑 (#a9dfbf) -> 濃い緑 (#1e8449)
+            // 簡易的に透明度で表現
+            bgColor = `rgba(39, 174, 96, ${0.3 + (intensity * 0.7)})`;
+        } else {
+            const intensity = Math.min(Math.abs(p) / 20, 1);
+            // #e74c3c (Base Red)
+            bgColor = `rgba(192, 57, 43, ${0.3 + (intensity * 0.7)})`;
+        }
+        div.style.backgroundColor = bgColor;
+
+        div.title = `${rect.data.name}\n評価額: ¥${rect.data.value.toLocaleString()}\n損益: ¥${rect.data.profit.toLocaleString()} (${p}%)`;
+        
+        // 内容
+        if (rect.w > 40 && rect.h > 40) {
+            div.innerHTML = `
+                <div style="font-weight:bold; text-align:center; max-width:100%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${rect.data.name}</div>
+                <div style="font-size:0.9em;">${p > 0 ? '+' : ''}${p}%</div>
+                ${rect.h > 60 ? `<div style="font-size:0.8em; opacity:0.9;">¥${(rect.data.value/10000).toFixed(0)}万</div>` : ''}
+            `;
+        }
+
+        // ホバー効果
+        div.addEventListener('mouseenter', () => {
+            div.style.zIndex = '10';
+            div.style.transform = 'scale(1.02)';
+            div.style.boxShadow = '0 4px 8px rgba(0,0,0,0.2)';
+        });
+        div.addEventListener('mouseleave', () => {
+            div.style.zIndex = '1';
+            div.style.transform = 'scale(1)';
+            div.style.boxShadow = 'none';
+        });
+
+        container.appendChild(div);
+    });
+}
+
+// 簡易的な分割アルゴリズム (バイナリ分割法のようなもの)
+function calculateTreemapRects(items, x, y, w, h) {
+    if (items.length === 0) return [];
+    if (items.length === 1) {
+        return [{ data: items[0], x, y, w, h, area: w * h }];
+    }
+
+    // 合計面積
+    const total = items.reduce((s, i) => s + i.area, 0);
+    
+    // 半分に近いところで分割点を探す
+    let sum = 0;
+    let splitIndex = 0;
+    for (let i = 0; i < items.length; i++) {
+        sum += items[i].area;
+        if (sum >= total / 2) {
+            splitIndex = i + 1;
+            break;
+        }
+    }
+    // 少なくとも1つは含める
+    if (splitIndex >= items.length) splitIndex = items.length - 1;
+    
+    const group1 = items.slice(0, splitIndex);
+    const group2 = items.slice(splitIndex);
+
+    const sum1 = group1.reduce((s, i) => s + i.area, 0);
+    // const sum2 = total - sum1;
+
+    const ratio = sum1 / total;
+    
+    let rects = [];
+
+    // 長辺を分割する
+    if (w > h) {
+        const w1 = w * ratio;
+        rects = rects.concat(calculateTreemapRects(group1, x, y, w1, h));
+        rects = rects.concat(calculateTreemapRects(group2, x + w1, y, w - w1, h));
+    } else {
+        const h1 = h * ratio;
+        rects = rects.concat(calculateTreemapRects(group1, x, y, w, h1));
+        rects = rects.concat(calculateTreemapRects(group2, x, y + h1, w, h - h1));
+    }
+
+    return rects;
+}
+
+function drawPieChart(data) {
+    const ctx = document.getElementById('mf-portfolio-pie').getContext('2d');
+    
+    // 上位10件 + その他
+    let displayData = data.slice(0, 10);
+    const others = data.slice(10);
+    
+    if (others.length > 0) {
+        const otherValue = others.reduce((s, i) => s + i.value, 0);
+        // その他に平均的な損益率などを入れるのは難しいので、ダミーオブジェクト作成
+        displayData.push({
+            name: 'その他 (' + others.length + '銘柄)',
+            value: otherValue,
+            profit: 0
+        });
+    }
+
+    const labels = displayData.map(d => d.name);
+    const values = displayData.map(d => d.value);
+    const colors = [
+        '#3498db', '#9b59b6', '#e74c3c', '#f1c40f', '#2ecc71',
+        '#1abc9c', '#34495e', '#e67e22', '#95a5a6', '#d35400', '#bdc3c7'
+    ];
+
+    new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: labels,
+            datasets: [{
+                data: values,
+                backgroundColor: colors.slice(0, displayData.length),
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'right',
+                    labels: { boxWidth: 10, font: { size: 10 } }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            let label = context.label || '';
+                            if (label) label += ': ';
+                            const val = context.raw;
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const percentage = Math.round((val / total) * 100) + '%';
+                            return label + percentage + ` (¥${val.toLocaleString()})`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+function renderRanking(data) {
+    const tbody = document.getElementById('mf-ranking-tbody');
+    // 損益額でソート
+    const sorted = [...data].sort((a, b) => b.profit - a.profit);
+
+    sorted.forEach(item => {
+        const tr = document.createElement('tr');
+        tr.style.borderBottom = '1px solid #f0f0f0';
+        
+        const profitClass = item.profit >= 0 ? 'mf-plus' : 'mf-minus';
+        const profitColor = item.profit >= 0 ? '#27ae60' : '#c0392b';
+        const sign = item.profit >= 0 ? '+' : '';
+
+        tr.innerHTML = `
+            <td style="padding:6px 4px; max-width:120px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${item.name}">
+                ${item.name}
+            </td>
+            <td style="text-align:right; padding:6px 4px;">¥${(item.value/10000).toFixed(1)}万</td>
+            <td style="text-align:right; padding:6px 4px; color:${profitColor}; font-weight:bold;">
+                ${sign}¥${item.profit.toLocaleString()}
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+
+// ===========================================================================
 // 家計簿画面拡張 (v1.3.4) - Stale Element対策強化版
 // ===========================================================================
 
@@ -935,7 +1422,19 @@ function initHouseholdBookEnhancement() {
     console.log('MoneyForward Enhancer: Household Book Enhancement Started');
 
     // 監視開始 (非同期で読み込まれる行に対応)
-    const observer = new MutationObserver(handleTableMutation);
+    // 頻繁なDOM更新によるパフォーマンス低下を防ぐためDebounceを適用
+    const debouncedUpdate = debounce(() => {
+        addCheckboxesToTable();
+    }, 200);
+
+    const observer = new MutationObserver((mutations) => {
+        // 子要素の追加があった場合のみ更新スケジュール
+        const hasAddedNodes = mutations.some(m => m.type === 'childList' && m.addedNodes.length > 0);
+        if (hasAddedNodes) {
+            debouncedUpdate();
+        }
+    });
+
     const table = document.getElementById('cf-detail-table');
 
     if (table) {
@@ -956,21 +1455,6 @@ function initHouseholdBookEnhancement() {
         });
         bodyObserver.observe(document.body, { childList: true, subtree: true });
     }
-
-    // createCategoryBulkPanel(); // ここでの無条件呼び出しを削除
-}
-
-function handleTableMutation(mutations) {
-    let shouldUpdate = false;
-    for (const mutation of mutations) {
-        if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
-            shouldUpdate = true;
-            break;
-        }
-    }
-    if (shouldUpdate) {
-        addCheckboxesToTable();
-    }
 }
 
 function addCheckboxesToTable() {
@@ -982,8 +1466,8 @@ function addCheckboxesToTable() {
     if (theadRow && !theadRow.querySelector('.mf-ext-header-cell')) {
         const th = document.createElement('th');
         th.className = 'mf-ext-header-cell';
-        th.style.width = '30px';
-        th.innerHTML = '<input type="checkbox" id="mf-toggle-all-rows" title="全て選択/解除">';
+        th.style.width = '45px';
+        th.innerHTML = '<div style="font-size:10px; font-weight:normal; margin-bottom:2px;">全選択</div><input type="checkbox" id="mf-toggle-all-rows" title="全て選択/解除">';
         theadRow.prepend(th);
 
         // 全選択イベント
@@ -1657,4 +2141,14 @@ function parseDate(str) {
         return new Date(2000, parseInt(match[1], 10) - 1, parseInt(match[2], 10));
     }
     return null;
+}
+
+// ユーティリティ: Debounce
+function debounce(func, wait) {
+    let timeout;
+    return function(...args) {
+        const context = this;
+        clearTimeout(timeout);
+        timeout = setTimeout(() => func.apply(context, args), wait);
+    };
 }
