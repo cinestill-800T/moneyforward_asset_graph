@@ -830,8 +830,8 @@ function drawChartCanvas(labels, headers, rows, isStacked) {
 
             ctx.save();
             ctx.textAlign = 'center';
-            ctx.textBaseline = 'bottom';
-            ctx.font = 'bold 10px "Helvetica Neue", Arial, sans-serif';
+            ctx.textBaseline = 'middle';
+            ctx.font = 'bold 11px "Helvetica Neue", Arial, sans-serif'; // フォント少し大きく
 
             chart.data.datasets.forEach((dataset, i) => {
                 const meta = chart.getDatasetMeta(i);
@@ -841,20 +841,42 @@ function drawChartCanvas(labels, headers, rows, isStacked) {
                     const value = dataset.data[index];
                     if (value === null || value === undefined) return;
 
-                    // フォーマット (Y軸のロジックに合わせる)
+                    // フォーマット
                     let text = '';
                     if (value >= 100000000) text = (value / 100000000).toFixed(1) + '億';
                     else if (value >= 10000) text = (value / 10000).toFixed(0) + '万';
-                    else text = value.toLocaleString();
+                    else text = value.toLocaleString(); // そのまま
 
                     const { x, y } = element.tooltipPosition();
-                    
-                    // 色はデータセットの色を使用、ただし視認性のため少し暗くする調整を入れても良いが
-                    // シンプルにデータセットの色を使う
-                    ctx.fillStyle = dataset.borderColor || '#636e72';
-                    
-                    // ドットの少し上に描画
-                    ctx.fillText(text, x, y - 6);
+
+                    // 色設定
+                    const color = dataset.borderColor || '#636e72';
+
+                    // 背景描画用の設定
+                    const paddingX = 6;
+                    const paddingY = 3;
+                    const textWidth = ctx.measureText(text).width;
+                    const bgWidth = textWidth + (paddingX * 2);
+                    const bgHeight = 20; // 固定高さ
+                    const radius = 4; // 角丸
+
+                    // 位置調整 (ドットの少し上)
+                    // 線と被らないように、吹き出しのように浮かせる
+                    const offset = 12;
+                    const labelX = x;
+                    const labelY = y - offset;
+
+                    // 白い縁取り (Halo Effect)
+                    ctx.save();
+                    ctx.lineJoin = 'round';
+                    ctx.lineWidth = 4; // 縁取りの太さ
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)'; // 少し透過させた白
+                    ctx.strokeText(text, labelX, labelY);
+                    ctx.restore();
+
+                    // テキスト本体描画
+                    ctx.fillStyle = color; // テーマカラーと同じ色で文字を描画
+                    ctx.fillText(text, labelX, labelY);
                 });
             });
             ctx.restore();
@@ -1003,7 +1025,7 @@ function createPortfolioPanel() {
 
     const panel = document.createElement('div');
     panel.id = 'mf-portfolio-panel';
-    
+
     // 既存のスタイルを流用しつつ、右上に固定
     panel.style.position = 'fixed';
     panel.style.top = '80px';
@@ -1040,7 +1062,7 @@ function createPortfolioPanel() {
 // DOMから保有資産データを抽出する
 function extractPortfolioData() {
     const data = [];
-    
+
     // 1. 株式（現物）
     const stockTable = findTableBySectionName('株式（現物）');
     if (stockTable) {
@@ -1050,7 +1072,7 @@ function extractPortfolioData() {
             const currentPrice = parseAmount(row.children[4]?.textContent); // 評価額
             const profit = parseAmount(row.children[6]?.textContent); // 評価損益
             const profitPercent = parseFloat(row.children[7]?.textContent.replace('%', '')); // 評価損益率
-            
+
             if (name && currentPrice !== null) {
                 data.push({
                     type: 'stock',
@@ -1105,7 +1127,7 @@ function findTableBySectionName(name) {
                 const table = container.querySelector('table');
                 if (table) return table;
                 container = container.nextElementSibling || container.parentElement;
-                 // nextElementSiblingで兄弟要素（セクション内コンテンツ）を探す
+                // nextElementSiblingで兄弟要素（セクション内コンテンツ）を探す
             }
         }
     }
@@ -1199,14 +1221,14 @@ function drawTreemap(data) {
 
     // データの正規化（合計値を100%とする）
     const totalValue = data.reduce((sum, item) => sum + item.value, 0);
-    
+
     // コンテナサイズ
     const width = container.clientWidth;
     const height = container.clientHeight;
 
     // 簡易Squarified Treemapアルゴリズム風の実装
     // 再帰的に分割していく
-    
+
     // まずデータを面積比でソート
     let items = data.map(d => ({
         ...d,
@@ -1235,7 +1257,7 @@ function drawTreemap(data) {
         div.style.fontSize = rect.area < 5000 ? '10px' : '12px'; // 小さい領域は文字小さく
         div.style.textShadow = '0 1px 2px rgba(0,0,0,0.3)';
         div.style.transition = 'transform 0.2s';
-        
+
         // 背景色決定（損益率に基づくヒートマップ）
         // 緑: 利益, 赤: 損失
         const p = rect.data.profitPercent;
@@ -1255,13 +1277,13 @@ function drawTreemap(data) {
         div.style.backgroundColor = bgColor;
 
         div.title = `${rect.data.name}\n評価額: ¥${rect.data.value.toLocaleString()}\n損益: ¥${rect.data.profit.toLocaleString()} (${p}%)`;
-        
+
         // 内容
         if (rect.w > 40 && rect.h > 40) {
             div.innerHTML = `
                 <div style="font-weight:bold; text-align:center; max-width:100%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${rect.data.name}</div>
                 <div style="font-size:0.9em;">${p > 0 ? '+' : ''}${p}%</div>
-                ${rect.h > 60 ? `<div style="font-size:0.8em; opacity:0.9;">¥${(rect.data.value/10000).toFixed(0)}万</div>` : ''}
+                ${rect.h > 60 ? `<div style="font-size:0.8em; opacity:0.9;">¥${(rect.data.value / 10000).toFixed(0)}万</div>` : ''}
             `;
         }
 
@@ -1290,7 +1312,7 @@ function calculateTreemapRects(items, x, y, w, h) {
 
     // 合計面積
     const total = items.reduce((s, i) => s + i.area, 0);
-    
+
     // 半分に近いところで分割点を探す
     let sum = 0;
     let splitIndex = 0;
@@ -1303,7 +1325,7 @@ function calculateTreemapRects(items, x, y, w, h) {
     }
     // 少なくとも1つは含める
     if (splitIndex >= items.length) splitIndex = items.length - 1;
-    
+
     const group1 = items.slice(0, splitIndex);
     const group2 = items.slice(splitIndex);
 
@@ -1311,7 +1333,7 @@ function calculateTreemapRects(items, x, y, w, h) {
     // const sum2 = total - sum1;
 
     const ratio = sum1 / total;
-    
+
     let rects = [];
 
     // 長辺を分割する
@@ -1330,11 +1352,11 @@ function calculateTreemapRects(items, x, y, w, h) {
 
 function drawPieChart(data) {
     const ctx = document.getElementById('mf-portfolio-pie').getContext('2d');
-    
+
     // 上位10件 + その他
     let displayData = data.slice(0, 10);
     const others = data.slice(10);
-    
+
     if (others.length > 0) {
         const otherValue = others.reduce((s, i) => s + i.value, 0);
         // その他に平均的な損益率などを入れるのは難しいので、ダミーオブジェクト作成
@@ -1372,7 +1394,7 @@ function drawPieChart(data) {
                 },
                 tooltip: {
                     callbacks: {
-                        label: function(context) {
+                        label: function (context) {
                             let label = context.label || '';
                             if (label) label += ': ';
                             const val = context.raw;
@@ -1395,7 +1417,7 @@ function renderRanking(data) {
     sorted.forEach(item => {
         const tr = document.createElement('tr');
         tr.style.borderBottom = '1px solid #f0f0f0';
-        
+
         const profitClass = item.profit >= 0 ? 'mf-plus' : 'mf-minus';
         const profitColor = item.profit >= 0 ? '#27ae60' : '#c0392b';
         const sign = item.profit >= 0 ? '+' : '';
@@ -1404,7 +1426,7 @@ function renderRanking(data) {
             <td style="padding:6px 4px; max-width:120px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${item.name}">
                 ${item.name}
             </td>
-            <td style="text-align:right; padding:6px 4px;">¥${(item.value/10000).toFixed(1)}万</td>
+            <td style="text-align:right; padding:6px 4px;">¥${(item.value / 10000).toFixed(1)}万</td>
             <td style="text-align:right; padding:6px 4px; color:${profitColor}; font-weight:bold;">
                 ${sign}¥${item.profit.toLocaleString()}
             </td>
@@ -2146,7 +2168,7 @@ function parseDate(str) {
 // ユーティリティ: Debounce
 function debounce(func, wait) {
     let timeout;
-    return function(...args) {
+    return function (...args) {
         const context = this;
         clearTimeout(timeout);
         timeout = setTimeout(() => func.apply(context, args), wait);
