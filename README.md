@@ -3,8 +3,9 @@
 マネーフォワード ME の資産推移画面から、過去の資産データを一括で取得・CSVダウンロード・グラフ表示する Google Chrome 拡張機能です。
 **v1.3.0 から、家計簿画面での一括カテゴリ設定機能が追加されました。**
 **v1.3.7 から、家計簿画面でのソート機能が追加されました。**
+**v1.4.0 から、内部構造が大規模にリファクタリングされ、保守性が向上しました。**
 
-![Version](https://img.shields.io/badge/version-1.3.7-blue.svg)
+![Version](https://img.shields.io/badge/version-1.4.0-blue.svg)
 
 ## ✨ 主な機能
 
@@ -77,21 +78,41 @@
 3. **CSVダウンロード**: 「全日次データをCSV保存」などをクリックします。
 4. **グラフ分析**: 「グラフを表示・生成」をクリックし、モーダル画面で分析します。
 
-## 🛠 技術スタック
+## 🛠 技術スタック・アーキテクチャ (v1.4.0+)
 
-- JavaScript (ES6+)
-- Chart.js (グラフ描画)
-- Chrome Extensions API (Manifest V3)
+本拡張機能は **Native ES Modules** を採用しており、Node.js等のビルドツール（Webpack, Viteなど）を必要としません。モジュール分割を行いながら、ブラウザ標準の機能のみで動作するシンプルな構成です。
 
-## 📂 ディレクトリ構成
+### アーキテクチャ概要
+
+1. **Loader Pattern**:
+    - `manifest.json` は `loader.js` を Content Script として読み込みます。
+    - `loader.js` は `src/core/main.js` を動的インポート (`import()`) します。これにより、Content Script 内でも ES Modules が使用可能になります。
+2. **Modular Design**:
+    - 機能を `core` (基盤), `api` (通信), `ui` (表示), `features` (機能固有) に分割し、責務を明確化しています。
+
+### ディレクトリ構成
 
 ```
 moneyforward_extension/
-├── assets/              # アイコン、ライブラリ(Chart.js)
-├── content.js           # メインロジック（データ取得、UI生成、グラフ描画、家計簿操作）
-├── manifest.json        # 拡張機能の設定ファイル
-├── style.css            # UIデザイン (テーマカスタマイズ対応)
-└── README.md            # 説明書
+├── src/
+│   ├── core/
+│   │   ├── main.js        # エントリーポイント。URLに応じて機能を初期化
+│   │   └── config.js      # 設定、定数、テーマ管理
+│   ├── api/
+│   │   ├── client.js      # データ取得、CSV解析/生成のロジック
+│   │   └── cache.js       # localStorageを使用したキャッシュ管理
+│   ├── ui/
+│   │   ├── panel.js       # 資産推移画面の操作パネルUI
+│   │   └── modal.js       # 設定モーダル等の汎用UI
+│   └── features/
+│       ├── asset-graph.js # 資産推移グラフの描画・操作ロジック
+│       ├── portfolio.js   # ポートフォリオ分析（ヒートマップ）機能
+│       └── household.js   # 家計簿の一括編集・ソート機能
+├── assets/                # アイコン、ライブラリ(Chart.js)
+├── loader.js              # モジュールローダー (Content Script エントリーポイント)
+├── manifest.json          # 拡張機能の設定ファイル
+├── style.css              # UIデザイン (テーマカスタマイズ対応)
+└── README.md              # 説明書
 ```
 
 ## 📝 License
