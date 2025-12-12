@@ -307,8 +307,8 @@
 
 .mf-modal-content {
   background: white !important;
-  width: 90% !important;
-  max-width: 900px !important;
+  width: 98vw !important;
+  max-width: 98vw !important;
   height: 80vh !important;
   border-radius: 16px !important;
   box-shadow: 0 25px 60px rgba(0,0,0,0.2) !important;
