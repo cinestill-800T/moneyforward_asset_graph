@@ -17,107 +17,250 @@ export function showGraphModal(initialData = null) {
     const modal = document.createElement('div');
     modal.className = 'mf-modal-overlay';
     modal.innerHTML = `
-        <div class="mf-modal-content">
-            <div class="mf-modal-header">
-                <div class="mf-modal-title" style="margin-right: 20px; white-space: nowrap;">資産推移グラフ設定 <span style="font-size:12px; font-weight:normal; opacity:0.7;">v${EXTENSION_VERSION}</span></div>
-                <div style="display:flex; gap:15px; align-items:center; flex-wrap: wrap;">
-                    <div style="display:flex; align-items:center; gap:8px;">
-                        <span style="font-size:12px; font-weight:bold; color:#636e72; white-space: nowrap;">期間:</span>
-                        <select id="mf-modal-range" class="mf-select" style="height:36px !important; line-height:36px !important; padding:0 25px 0 10px !important; width:auto !important; min-width: 100px;">
-                            <option value="1">過去1年</option>
-                            <option value="3">過去3年</option>
-                            <option value="5">過去5年</option>
-                            <option value="10" selected>過去10年</option>
-                            <option value="all">全期間</option>
-                        </select>
-                    </div>
-                    
-                    <div style="display:flex; align-items:center; gap:5px; background:#f3f4f6; padding:4px 10px; border-radius:6px; white-space: nowrap;">
-                        <input type="checkbox" id="mf-modal-filter-check" checked>
-                        <label for="mf-modal-filter-check" style="font-size:12px; font-weight:bold; color:#2d3436; cursor:pointer; margin:0;">指定日のみ:</label>
-                        <span style="font-size:12px;">毎月</span>
-                        <input type="number" id="mf-modal-day" value="25" min="1" max="31" style="width:40px; padding:4px; border:1px solid #ccc; border-radius:4px; text-align:center;">
-                        <span style="font-size:12px;">日</span>
-                    </div>
-
-                    <button class="mf-modal-btn mf-modal-btn-primary" id="mf-modal-fetch" style="padding: 6px 12px !important; font-size:12px !important; margin-top:0 !important; white-space: nowrap;">
-                        再取得・描画
-                    </button>
-                    
-                    <button class="mf-modal-btn mf-modal-btn-close" id="mf-modal-close" style="margin-left:auto;">×</button>
+        <div class="mf-modal-content" style="width: 95vw; max-width: 1400px; height: 90vh; display: flex; flex-direction: column;">
+            
+            <!-- Header -->
+            <div class="mf-modal-header" style="flex-shrink: 0; display:flex; justify-content:space-between; align-items:center; padding: 10px 15px;">
+                <div style="display:flex; align-items:center; gap:15px;">
+                    <div class="mf-modal-title" style="margin:0;">資産推移グラフ設定</div>
+                    <div id="mf-status-msg" style="font-size: 12px; color: #636e72;"></div>
+                </div>
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <button class="mf-modal-btn mf-modal-btn-primary" id="mf-modal-fetch">再取得・描画</button>
+                    <button class="mf-modal-btn mf-modal-btn-close" id="mf-modal-close">×</button>
                 </div>
             </div>
-            <div class="mf-modal-body">
+
+            <!-- Controls Area (Ultra Compact) -->
+            <div style="background: #f8f9fa; border-bottom: 1px solid #dfe6e9; padding: 8px 15px; flex-shrink: 0; font-size: 13px;">
+                <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 20px; row-gap: 8px;">
+                    
+                    <!-- Section: Period -->
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <div style="font-weight: bold; color: #2d3436;">期間:</div>
+                        
+                        <!-- Mode Selection -->
+                        <div style="display: flex; gap: 10px;">
+                            <label class="mf-radio-label"><input type="radio" name="mf-mode" value="relative" checked> 相対期間</label>
+                            <label class="mf-radio-label"><input type="radio" name="mf-mode" value="year"> 指定年</label>
+                            <label class="mf-radio-label"><input type="radio" name="mf-mode" value="range"> 期間指定</label>
+                        </div>
+                        
+                        <div style="width: 1px; height: 16px; background: #ccc; margin: 0 5px;"></div>
+
+                        <!-- Mode Inputs -->
+                        <div id="mf-mode-relative-opts" class="mf-mode-opts" style="display: flex;">
+                            <select id="mf-modal-range" class="mf-select" style="padding-top:2px; padding-bottom:2px; height:26px;">
+                                <option value="1">過去1年</option>
+                                <option value="3">過去3年</option>
+                                <option value="5">過去5年</option>
+                                <option value="10" selected>過去10年</option>
+                                <option value="20">過去20年</option>
+                                <option value="all">全期間</option>
+                            </select>
+                        </div>
+                        <div id="mf-mode-year-opts" class="mf-mode-opts" style="display: none; align-items: center; gap: 5px;">
+                            <select id="mf-select-year" class="mf-select" style="width: 80px; padding-top:2px; padding-bottom:2px; height:26px;"></select>
+                            <span>年</span>
+                        </div>
+                        <div id="mf-mode-range-opts" class="mf-mode-opts" style="display: none; align-items: center; gap: 5px;">
+                            <input type="date" id="mf-input-start" class="mf-input-date" style="height:26px;">
+                            <span>〜</span>
+                            <input type="date" id="mf-input-end" class="mf-input-date" style="height:26px;">
+                        </div>
+                    </div>
+
+                    <!-- Separator (Visible on wide screens) -->
+                    <div class="mf-separator-vertical" style="width: 1px; height: 20px; background: #dfe6e9;"></div>
+
+                    <!-- Section: Filter -->
+                    <div style="display: flex; align-items: center; gap: 15px;">
+                        <div style="font-weight: bold; color: #2d3436;">抽出:</div>
+                        
+                        <div class="mf-filter-group">
+                            <input type="checkbox" id="mf-check-month-end">
+                            <label for="mf-check-month-end" title="各月の最終データのみを抽出します">月末判定</label>
+                        </div>
+
+                        <div class="mf-filter-group">
+                            <input type="checkbox" id="mf-check-day" checked>
+                            <label for="mf-check-day">日付:</label>
+                            <select id="mf-select-day" class="mf-select-sm" style="width: 50px;">
+                                ${Array.from({ length: 31 }, (_, i) => `<option value="${i + 1}" ${i + 1 === 25 ? 'selected' : ''}>${i + 1}</option>`).join('')}
+                            </select>
+                        </div>
+
+                        <div class="mf-filter-group">
+                            <input type="checkbox" id="mf-check-month">
+                            <label for="mf-check-month">特定月:</label>
+                            <select id="mf-select-month" class="mf-select-sm" disabled>
+                                ${Array.from({ length: 12 }, (_, i) => `<option value="${i + 1}">${i + 1}月</option>`).join('')}
+                            </select>
+                        </div>
+
+                        <div class="mf-filter-group">
+                            <input type="checkbox" id="mf-check-interval">
+                            <label for="mf-check-interval">間引き:</label>
+                            <select id="mf-select-interval" class="mf-select-sm" disabled>
+                                <option value="3">3ヶ月</option>
+                                <option value="6">6ヶ月</option>
+                                <option value="12">1年</option>
+                            </select>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- Graph Body -->
+            <div class="mf-modal-body" style="flex: 1; position: relative; min-height: 0;">
                 <div id="mf-modal-loading" style="position:absolute; top:0; left:0; width:100%; height:100%; background:rgba(255,255,255,0.8); z-index:10; display:none; justify-content:center; align-items:center; flex-direction:column;">
                     <div style="font-weight:bold; color:#313647; margin-bottom:10px;">データ取得中...</div>
                     <div style="width:200px; height:4px; background:#ddd; border-radius:2px;"><div id="mf-modal-progress" style="width:0%; height:100%; background:#A3B087;"></div></div>
                 </div>
                 <canvas id="mf-chart"></canvas>
                 <div id="mf-no-data-msg" style="display:none; position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); text-align:center; color:#888;">
-                    <p>データがありません。<br>右上の「再取得・描画」ボタンを押してください。</p>
+                    <p>表示できるデータがありません。<br>条件を変更して「再取得・描画」を押してください。</p>
                 </div>
             </div>
-            <div class="mf-modal-footer">
+
+            <!-- Footer -->
+            <div class="mf-modal-footer" style="flex-shrink: 0; padding: 10px 15px;">
                 <div style="margin-right:auto; display:flex; align-items:center; gap:5px;">
                     <input type="checkbox" id="mf-chart-stack-check">
                     <label for="mf-chart-stack-check" style="font-size:12px; cursor:pointer;">内訳を積み上げ表示する</label>
                 </div>
-                <button class="mf-modal-btn mf-modal-btn-close" id="mf-download-csv">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                        <polyline points="7 10 12 15 17 10" />
-                        <line x1="12" y1="15" x2="12" y2="3" />
-                    </svg>
-                   CSV保存
-                </button>
-                <button class="mf-modal-btn mf-modal-btn-close" id="mf-copy-data">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                    </svg>
-                   CSVコピー
-                </button>
-                <button class="mf-modal-btn mf-modal-btn-copy" id="mf-copy-image">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
-                        <circle cx="12" cy="13" r="4"></circle>
-                    </svg>
-                   画像コピー
-                </button>
+                <button class="mf-modal-btn mf-modal-btn-close" id="mf-download-csv">CSV保存</button>
+                <button class="mf-modal-btn mf-modal-btn-close" id="mf-copy-data">CSVコピー</button>
+                <button class="mf-modal-btn mf-modal-btn-copy" id="mf-copy-image">画像コピー</button>
             </div>
         </div>
+
+        <style>
+            .mf-radio-label { font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 4px; user-select: none; }
+            .mf-mode-opts { animation: fadeIn 0.1s; } /* Faster animation */
+            .mf-input-date { padding: 3px 6px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; font-family: sans-serif; } /* More compact padding */
+            .mf-filter-group { display: flex; align-items: center; gap: 5px; font-size: 12px; } /* Removed border/bg for cleaner look in compact mode? Or keep? Let's keep but make smaller */
+            .mf-filter-group { background: transparent; border: none; padding: 0; } /* Actually let's remove the boxy look for compactness */
+            .mf-select-sm { padding: 1px 2px; border: 1px solid #ccc; border-radius: 3px; font-size: 12px; height: 22px; }
+            @keyframes fadeIn { from { opacity: 0; transform: translateY(-2px); } to { opacity: 1; transform: translateY(0); } }
+        </style>
     `;
     document.body.appendChild(modal);
 
     // イベント設定
     document.getElementById('mf-modal-close').addEventListener('click', () => { modal.remove(); globalChart = null; });
 
+    // 年選択の生成 (現在年〜2000年)
+    const yearSelect = document.getElementById('mf-select-year');
+    const currentYear = new Date().getFullYear();
+    for (let y = currentYear; y >= 2000; y--) {
+        const opt = document.createElement('option');
+        opt.value = y;
+        opt.textContent = y;
+        yearSelect.appendChild(opt);
+    }
+
+    // モード切替
+    const modeRadios = document.querySelectorAll('input[name="mf-mode"]');
+    const optsRelative = document.getElementById('mf-mode-relative-opts');
+    const optsYear = document.getElementById('mf-mode-year-opts');
+    const optsRange = document.getElementById('mf-mode-range-opts');
+
+    modeRadios.forEach(radio => {
+        radio.addEventListener('change', (e) => {
+            const val = e.target.value;
+            optsRelative.style.display = val === 'relative' ? 'flex' : 'none';
+            optsYear.style.display = val === 'year' ? 'flex' : 'none';
+            optsRange.style.display = val === 'range' ? 'flex' : 'none';
+        });
+    });
+
+    // 高度フィルタ切替
+    const toggleFilter = (checkId, selectId) => {
+        const chk = document.getElementById(checkId);
+        const sel = document.getElementById(selectId);
+        if (chk && sel) {
+            chk.addEventListener('change', () => {
+                sel.disabled = !chk.checked;
+                updateGraph(); // 即時反映
+            });
+            sel.addEventListener('change', updateGraph);
+        } else if (chk) {
+            chk.addEventListener('change', updateGraph);
+        }
+    };
+
+    toggleFilter('mf-check-day', 'mf-select-day');
+    toggleFilter('mf-check-month', 'mf-select-month');
+    toggleFilter('mf-check-interval', 'mf-select-interval');
+
+    // 年選択の変更でもグラフ更新できるようにする
+    yearSelect.addEventListener('change', () => {
+        if (document.querySelector('input[name="mf-mode"][value="year"]').checked) {
+            updateGraph();
+        }
+    });
+
+    // 月末判定チェック時は日付指定を無効化する相互作用
+    document.getElementById('mf-check-month-end').addEventListener('change', (e) => {
+        if (e.target.checked) {
+            document.getElementById('mf-check-day').checked = false;
+            document.getElementById('mf-select-day').disabled = true;
+        }
+        updateGraph();
+    });
+    document.getElementById('mf-check-day').addEventListener('change', (e) => {
+        if (e.target.checked) {
+            document.getElementById('mf-check-month-end').checked = false;
+        }
+    });
+
+
     const fetchBtn = document.getElementById('mf-modal-fetch');
+    const statusMsg = document.getElementById('mf-status-msg');
+
     fetchBtn.addEventListener('click', async () => {
-        const years = document.getElementById('mf-modal-range').value;
+        const mode = document.querySelector('input[name="mf-mode"]:checked').value;
         const loading = document.getElementById('mf-modal-loading');
         const progress = document.getElementById('mf-modal-progress');
 
         loading.style.display = 'flex';
         fetchBtn.disabled = true;
+        statusMsg.textContent = '';
 
-        const data = await fetchData(years, (pct) => {
-            progress.style.width = `${pct}%`;
-        });
+        let yearsToFetch = '10'; // default
 
-        loading.style.display = 'none';
-        fetchBtn.disabled = false;
-
-        if (data) {
-            lastFetchedData = data;
-            updateGraph();
+        // データ取得範囲の決定
+        // カスタム期間や指定年の場合は、対象が含まれるように広く取る必要がある
+        // 安全のため 'all' を取得する方針とする (APIキャッシュが効くため2回目以降は速い)
+        if (mode === 'relative') {
+            yearsToFetch = document.getElementById('mf-modal-range').value;
         } else {
-            alert('データ取得に失敗しました');
+            yearsToFetch = 'all';
+        }
+
+        try {
+            const data = await fetchData(yearsToFetch, (pct) => {
+                progress.style.width = `${pct}%`;
+            });
+
+            if (data) {
+                lastFetchedData = data;
+                updateGraph();
+            } else {
+                statusMsg.textContent = 'データ取得に失敗しました';
+            }
+        } catch (e) {
+            console.error(e);
+            statusMsg.textContent = 'エラーが発生しました';
+        } finally {
+            loading.style.display = 'none';
+            fetchBtn.disabled = false;
         }
     });
 
-    document.getElementById('mf-modal-filter-check').addEventListener('change', updateGraph);
-    document.getElementById('mf-modal-day').addEventListener('change', updateGraph);
+    // グラフ更新トリガー
     document.getElementById('mf-chart-stack-check').addEventListener('change', updateGraph);
 
     document.getElementById('mf-copy-data').addEventListener('click', copyGraphData);
@@ -125,7 +268,7 @@ export function showGraphModal(initialData = null) {
 
     document.getElementById('mf-download-csv').addEventListener('click', () => {
         if (!globalChart || !lastFetchedData) return;
-        const filteredRows = getFilteredRows();
+        const filteredRows = getFilteredRows(); // 現在の表示内容でCSV化
         if (!filteredRows || filteredRows.length === 0) { alert('データがありません'); return; }
         const csvRows = [...filteredRows].reverse();
         const finalCsv = generateCSV([lastFetchedData.headers, ...csvRows]);
@@ -139,22 +282,120 @@ export function showGraphModal(initialData = null) {
     }
 }
 
-// フィルタリングロジックを共通化
+// フィルタリングロジック (大幅強化)
 function getFilteredRows() {
     if (!lastFetchedData) return [];
-    const filterCheck = document.getElementById('mf-modal-filter-check').checked;
-    const targetDay = parseInt(document.getElementById('mf-modal-day').value, 10);
 
-    let rows = [...lastFetchedData.rows];
+    const mode = document.querySelector('input[name="mf-mode"]:checked').value;
 
-    if (filterCheck && !isNaN(targetDay)) {
-        rows = rows.filter(r => {
-            const d = new Date(r[0]);
-            return !isNaN(d.getTime()) && d.getDate() === targetDay;
-        });
+    // 1. まず全データを日付オブジェクト付きで用意
+    let rows = lastFetchedData.rows.map(r => ({
+        date: new Date(r[0]),
+        raw: r
+    })).filter(item => !isNaN(item.date.getTime()));
+
+    // 2. モードによる期間フィルタ
+    if (mode === 'relative') {
+        const rangeVal = document.getElementById('mf-modal-range').value;
+        if (rangeVal !== 'all') {
+            const years = parseInt(rangeVal, 10);
+            const cutoffDate = new Date();
+            cutoffDate.setFullYear(cutoffDate.getFullYear() - years);
+            rows = rows.filter(r => r.date >= cutoffDate);
+        }
+    } else if (mode === 'year') {
+        const targetYear = parseInt(document.getElementById('mf-select-year').value, 10);
+        if (!isNaN(targetYear)) {
+            rows = rows.filter(r => r.date.getFullYear() === targetYear);
+        }
+    } else if (mode === 'range') {
+        const startStr = document.getElementById('mf-input-start').value;
+        const endStr = document.getElementById('mf-input-end').value;
+        if (startStr) {
+            const startDate = new Date(startStr);
+            rows = rows.filter(r => r.date >= startDate);
+        }
+        if (endStr) {
+            const endDate = new Date(endStr);
+            // 終了日はその日の終わりまで含めるため調整しても良いが、単純比較でいく
+            rows = rows.filter(r => r.date <= endDate);
+        }
     }
 
-    return rows.reverse();
+    // 3. 高度フィルタ
+
+    // (A) 月末自動判定
+    // 同じ「年-月」の中で最も日付が大きいデータのみを残す
+    if (document.getElementById('mf-check-month-end').checked) {
+        const monthMap = new Map();
+        rows.forEach(r => {
+            const key = `${r.date.getFullYear()}-${r.date.getMonth()}`;
+            const existing = monthMap.get(key);
+            if (!existing || r.date > existing.date) {
+                monthMap.set(key, r);
+            }
+        });
+        rows = Array.from(monthMap.values());
+    }
+    // (B) 日付指定 (月末判定がOFFの場合のみ)
+    else if (document.getElementById('mf-check-day').checked) {
+        const targetDay = parseInt(document.getElementById('mf-select-day').value, 10);
+        rows = rows.filter(r => r.date.getDate() === targetDay);
+    }
+
+    // (C) 特定月指定
+    if (document.getElementById('mf-check-month').checked) {
+        const targetMonth = parseInt(document.getElementById('mf-select-month').value, 10); // 1-12
+        rows = rows.filter(r => (r.date.getMonth() + 1) === targetMonth);
+    }
+
+    // (D) 間引き (Interval)
+    // 日付順に並んでいる前提で、Nヶ月ごとのデータを残す
+    if (document.getElementById('mf-check-interval').checked) {
+        const interval = parseInt(document.getElementById('mf-select-interval').value, 10);
+
+        // 年月でグルーピングしてソート
+        rows.sort((a, b) => a.date - b.date);
+
+        const filtered = [];
+        let lastMonthKey = null;
+        let monthsCount = 0;
+
+        // 基点となる最初のデータは残す？それとも単純に月差分？
+        // シンプルに「最初のデータからNヶ月経過したデータ」を拾う
+        if (rows.length > 0) {
+            const distinctMonths = [];
+            // まず月ごとに最も代表的なデータ（通常は月末寄り）を1つ選ぶ必要があるが、
+            // 既に(A)(B)で月1件になっている可能性が高い。
+            // なっていない場合（全日表示など）はどうする？ -> 単純にスキップする
+
+            // ここではシンプルに「リスト上のインデックス」ではなく「月数差」で判断する
+            let baseDate = rows[0].date;
+            filtered.push(rows[0]);
+
+            for (let i = 1; i < rows.length; i++) {
+                const d = rows[i].date;
+                // 月差分計算
+                const diffMonths = (d.getFullYear() - baseDate.getFullYear()) * 12 + (d.getMonth() - baseDate.getMonth());
+                if (diffMonths >= interval) {
+                    filtered.push(rows[i]);
+                    baseDate = d;
+                }
+            }
+            rows = filtered;
+        }
+    }
+
+    // 4. ソートして配列に戻す
+    rows.sort((a, b) => a.date - b.date); // 古い順（グラフ描画用）
+
+    // 表示数更新など
+    const statusMsg = document.getElementById('mf-status-msg');
+    if (statusMsg) {
+        statusMsg.textContent = `表示: ${rows.length}件`;
+    }
+
+    return rows.map(r => r.raw);
 }
 // このモジュールからエクスポートして使えるようにもする
 export function updateGraph() {
@@ -243,7 +484,7 @@ function drawChartCanvas(labels, headers, rows, isStacked) {
         id: 'dataLabelPlugin',
         afterDatasetsDraw: (chart) => {
             const { ctx, data } = chart;
-            const DATA_LABEL_THRESHOLD = 20;
+            const DATA_LABEL_THRESHOLD = 40;
 
             // データ点数が閾値より多い場合は表示しない
             if (data.labels.length > DATA_LABEL_THRESHOLD) return;
