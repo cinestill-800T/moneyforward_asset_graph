@@ -9,8 +9,9 @@
 **v1.5.4 で、ポートフォリオ画面にて「保有金融機関」「取得日」「変更」「削除」の列を自動的に非表示にする機能を追加しました。**
 
 **v1.5.5 で、ポートフォリオ分析（ヒートマップ）機能を削除しました。**
+**v1.5.6 で、削除した機能に関連するバグを修正しました。**
 
-![Version](https://img.shields.io/badge/version-1.5.5-blue.svg)
+![Version](https://img.shields.io/badge/version-1.5.6-blue.svg)
 
 ## ✨ 主な機能
 
