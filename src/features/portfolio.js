@@ -4,7 +4,6 @@
 
 export function initPortfolioEnhancement() {
     console.log('MoneyForward Enhancer: Portfolio Enhancement Started');
-    createPortfolioPanel();
     hideUnwantedColumns();
 }
 
