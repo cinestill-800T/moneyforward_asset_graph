@@ -587,11 +587,26 @@ function drawChartCanvas(labels, headers, rows, isStacked, isDiff) {
                 padding: { top: 20, bottom: isDiff ? 20 : 0 }
             },
             plugins: {
-                title: { 
-                    display: true, 
-                    text: isDiff ? '資産増減（前回比）' : (isStacked ? '資産推移（内訳）' : '資産推移（合計）'), 
-                    font: { size: 16 }, 
-                    color: currentTheme.color1 
+                title: {
+                    display: true,
+                    text: (() => {
+                        if (isDiff) {
+                            // 期間合計の計算 (最後 - 最初)
+                            // rowsはソート済み
+                            const firstVal = parseInt(rows[0][1] || 0, 10);
+                            const lastVal = parseInt(rows[rows.length - 1][1] || 0, 10);
+                            const totalDiff = lastVal - firstVal;
+
+                            const formattedTotal = new Intl.NumberFormat('ja-JP', { style: 'currency', currency: 'JPY' }).format(totalDiff);
+                            const sign = totalDiff > 0 ? '+' : '';
+                            const totalText = `期間合計: ${sign}${formattedTotal}`.replace('￥', '¥');
+
+                            return ['資産増減（前回比）', totalText];
+                        }
+                        return isStacked ? '資産推移（内訳）' : '資産推移（合計）';
+                    })(),
+                    font: { size: 16 },
+                    color: currentTheme.color1
                 },
                 tooltip: {
                     backgroundColor: currentTheme.color1,
@@ -605,7 +620,7 @@ function drawChartCanvas(labels, headers, rows, isStacked, isDiff) {
                                 const val = context.parsed.y;
                                 const formatted = new Intl.NumberFormat('ja-JP', { style: 'currency', currency: 'JPY' }).format(val);
                                 // プラス記号付与
-                                if (isDiff && val > 0) label += '+' + formatted.replace('￥', ''); 
+                                if (isDiff && val > 0) label += '+' + formatted.replace('￥', '');
                                 else label += formatted;
                             }
                             return label;
@@ -627,8 +642,8 @@ function drawChartCanvas(labels, headers, rows, isStacked, isDiff) {
                             if (absVal >= 100000000) text = (value / 100000000).toFixed(1) + '億円';
                             else if (absVal >= 10000) text = (value / 10000).toFixed(0) + '万円';
                             else text = '¥' + value.toLocaleString();
-                            
-                            if (isDiff && value > 0) return '+' + text.replace('¥','');
+
+                            if (isDiff && value > 0) return '+' + text.replace('¥', '');
                             return text;
                         }
                     }
