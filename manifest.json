@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "MoneyForward Enhancer",
-  "version": "1.5.6",
-  "description": "マネーフォワードの資産推移画面からデータをCSVで一括ダウンロード・グラフ表示します。家計簿画面での一括編集機能も搭載。",
+  "name": "MoneyForward Asset Graph",
+  "version": "2.0.0",
+  "description": "マネーフォワードMEの資産推移を美しいグラフで可視化。過去データのCSV一括ダウンロードも可能。",
   "icons": {
     "16": "assets/icon16.png",
     "48": "assets/icon48.png",
@@ -11,10 +11,7 @@
   "content_scripts": [
     {
       "matches": [
-        "https://moneyforward.com/bs/history*",
-        "https://moneyforward.com/bs/portfolio*",
-        "https://moneyforward.com/cf*",
-        "https://moneyforward.com/"
+        "https://moneyforward.com/bs/history*"
       ],
       "js": [
         "assets/chart.min.js",
