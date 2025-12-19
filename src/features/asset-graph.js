@@ -126,10 +126,14 @@ export function showGraphModal(initialData = null) {
 
             <!-- Footer -->
             <div class="mf-modal-footer" style="flex-shrink: 0; padding: 10px 15px;">
-                <div style="margin-right:auto; display:flex; align-items:center; gap:5px;">
-                    <input type="checkbox" id="mf-chart-stack-check">
-                    <label for="mf-chart-stack-check" style="font-size:12px; cursor:pointer;">内訳を積み上げ表示する</label>
-                </div>
+                    <div style="margin-right:auto; display:flex; align-items:center; gap:5px;">
+                        <input type="checkbox" id="mf-chart-stack-check">
+                        <label for="mf-chart-stack-check" style="font-size:12px; cursor:pointer;">内訳を積み上げ表示する</label>
+                    </div>
+                    <div style="margin-right:15px; display:flex; align-items:center; gap:5px;">
+                        <input type="checkbox" id="mf-chart-diff-check">
+                        <label for="mf-chart-diff-check" style="font-size:12px; cursor:pointer;">前回の点からの増減を表示</label>
+                    </div>
                 <button class="mf-modal-btn mf-modal-btn-close" id="mf-download-csv">CSV保存</button>
                 <button class="mf-modal-btn mf-modal-btn-close" id="mf-copy-data">CSVコピー</button>
                 <button class="mf-modal-btn mf-modal-btn-copy" id="mf-copy-image">画像コピー</button>
@@ -262,6 +266,7 @@ export function showGraphModal(initialData = null) {
 
     // グラフ更新トリガー
     document.getElementById('mf-chart-stack-check').addEventListener('change', updateGraph);
+    document.getElementById('mf-chart-diff-check').addEventListener('change', updateGraph);
 
     document.getElementById('mf-copy-data').addEventListener('click', copyGraphData);
     document.getElementById('mf-copy-image').addEventListener('click', copyGraphImage);
@@ -413,8 +418,9 @@ export function updateGraph() {
     const headers = lastFetchedData.headers;
     const labels = rows.map(r => r[0]);
     const isStacked = document.getElementById('mf-chart-stack-check').checked;
+    const isDiff = document.getElementById('mf-chart-diff-check').checked;
 
-    drawChartCanvas(labels, headers, rows, isStacked);
+    drawChartCanvas(labels, headers, rows, isStacked, isDiff);
 }
 
 // ヘルパー
@@ -425,23 +431,52 @@ function hexToRgbObj(hex) {
     return { r, g, b };
 }
 
-function drawChartCanvas(labels, headers, rows, isStacked) {
+function drawChartCanvas(labels, headers, rows, isStacked, isDiff) {
     if (globalChart) globalChart.destroy();
     const ctx = document.getElementById('mf-chart').getContext('2d');
 
     const datasets = [];
-    // 現在のテーマカラーを使用
     const themeColors = [
         currentTheme.color1,
         currentTheme.color2,
         currentTheme.color3,
         currentTheme.color4
     ];
-    // バリエーション用追加色 (固定)
-    const extraColors = ['#C2B280', '#8C705F', '#6A8D92', '#D4C5A3'];
-    const palette = [...themeColors, ...extraColors];
 
-    if (isStacked) {
+    if (isDiff) {
+        // --- 増減モード (Bar Chart) ---
+        // 差分データの生成
+        const diffData = [];
+        // [0]は前回がないので0 or null
+        diffData.push(0);
+
+        for (let i = 1; i < rows.length; i++) {
+            const currentTotal = parseInt(rows[i][1] || 0, 10);
+            const prevTotal = parseInt(rows[i - 1][1] || 0, 10);
+            diffData.push(currentTotal - prevTotal);
+        }
+
+        // ラベルはそのまま日付を使う
+
+        // 色設定 (プラス: 青/緑, マイナス: 赤)
+        const backgroundColors = diffData.map(val => val >= 0 ? currentTheme.color2 : '#e74c3c');
+        const borderColors = diffData.map(val => val >= 0 ? currentTheme.color1 : '#c0392b');
+
+        datasets.push({
+            label: '前回比増減',
+            data: diffData,
+            backgroundColor: backgroundColors,
+            borderColor: borderColors,
+            borderWidth: 1,
+            borderRadius: 4, // 角丸
+        });
+
+    } else if (isStacked) {
+        // --- 積み上げモード (Area Chart) ---
+        // 以下既存ロジック
+        const extraColors = ['#C2B280', '#8C705F', '#6A8D92', '#D4C5A3'];
+        const palette = [...themeColors, ...extraColors];
+
         for (let i = 2; i < headers.length; i++) {
             if (headers[i] === '詳細') continue;
 
@@ -462,6 +497,7 @@ function drawChartCanvas(labels, headers, rows, isStacked) {
             });
         }
     } else {
+        // --- 通常モード (Line Chart) ---
         const rgb = hexToRgbObj(currentTheme.color1);
         const gradient = ctx.createLinearGradient(0, 0, 0, 400);
         gradient.addColorStop(0, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.4)`);
@@ -479,20 +515,19 @@ function drawChartCanvas(labels, headers, rows, isStacked) {
         });
     }
 
-    // データラベル表示プラグイン (データ点数が少ない場合のみ表示)
+    // データラベル表示プラグイン
     const dataLabelPlugin = {
         id: 'dataLabelPlugin',
         afterDatasetsDraw: (chart) => {
             const { ctx, data } = chart;
             const DATA_LABEL_THRESHOLD = 40;
 
-            // データ点数が閾値より多い場合は表示しない
             if (data.labels.length > DATA_LABEL_THRESHOLD) return;
 
             ctx.save();
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.font = 'bold 11px "Helvetica Neue", Arial, sans-serif'; // フォント少し大きく
+            ctx.font = 'bold 11px "Helvetica Neue", Arial, sans-serif';
 
             chart.data.datasets.forEach((dataset, i) => {
                 const meta = chart.getDatasetMeta(i);
@@ -501,35 +536,38 @@ function drawChartCanvas(labels, headers, rows, isStacked) {
                 meta.data.forEach((element, index) => {
                     const value = dataset.data[index];
                     if (value === null || value === undefined) return;
+                    // 増減モードで0の場合は表示しない（邪魔だから）
+                    if (isDiff && value === 0) return;
 
-                    // フォーマット
                     let text = '';
-                    if (value >= 100000000) text = (value / 100000000).toFixed(1) + '億';
-                    else if (value >= 10000) text = (value / 10000).toFixed(0) + '万';
-                    else text = value.toLocaleString(); // そのまま
+                    // 単位処理
+                    const absVal = Math.abs(value);
+                    if (absVal >= 100000000) text = (value / 100000000).toFixed(1) + '億';
+                    else if (absVal >= 10000) text = (value / 10000).toFixed(0) + '万';
+                    else text = value.toLocaleString();
+
+                    // 増減モードなら + を付ける
+                    if (isDiff && value > 0) text = '+' + text;
 
                     const { x, y } = element.tooltipPosition();
+                    const color = dataset.borderColor instanceof Array ? dataset.borderColor[index] : dataset.borderColor || '#636e72';
 
-                    // 色設定
-                    const color = dataset.borderColor || '#636e72';
+                    // 位置調整
+                    // Bar Chartの場合はバーの上/下におく
+                    let labelY = y - 12;
+                    if (isDiff && value < 0) labelY = y + 12; // 下向きバーなら下に
 
-                    // 位置調整 (ドットの少し上)
-                    // 線と被らないように、吹き出しのように浮かせる
-                    const offset = 12;
-                    const labelX = x;
-                    const labelY = y - offset;
-
-                    // 白い縁取り (Halo Effect)
+                    // Halo Effect
                     ctx.save();
                     ctx.lineJoin = 'round';
-                    ctx.lineWidth = 4; // 縁取りの太さ
-                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)'; // 少し透過させた白
-                    ctx.strokeText(text, labelX, labelY);
+                    ctx.lineWidth = 4;
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+                    ctx.strokeText(text, x, labelY);
                     ctx.restore();
 
-                    // テキスト本体描画
-                    ctx.fillStyle = color; // テーマカラーと同じ色で文字を描画
-                    ctx.fillText(text, labelX, labelY);
+                    // Text
+                    ctx.fillStyle = color;
+                    ctx.fillText(text, x, labelY);
                 });
             });
             ctx.restore();
@@ -537,21 +575,24 @@ function drawChartCanvas(labels, headers, rows, isStacked) {
     };
 
     globalChart = new Chart(ctx, {
-        type: 'line',
+        type: isDiff ? 'bar' : 'line',
         data: { labels, datasets },
-        plugins: [dataLabelPlugin], // プラグイン登録
+        plugins: [dataLabelPlugin],
         options: {
             responsive: true,
             maintainAspectRatio: false,
             interaction: { mode: 'index', intersect: false },
-            stacked: isStacked,
+            stacked: isStacked, // Bar Chartでも累積したい？いや増減の場合は累積しないほうがいいか。今回はTotalのみなのでfalse
             layout: {
-                padding: {
-                    top: 20 // ラベルが見切れないように上部に余白追加
-                }
+                padding: { top: 20, bottom: isDiff ? 20 : 0 }
             },
             plugins: {
-                title: { display: true, text: isStacked ? '資産推移（内訳）' : '資産推移（合計）', font: { size: 16 }, color: currentTheme.color1 },
+                title: { 
+                    display: true, 
+                    text: isDiff ? '資産増減（前回比）' : (isStacked ? '資産推移（内訳）' : '資産推移（合計）'), 
+                    font: { size: 16 }, 
+                    color: currentTheme.color1 
+                },
                 tooltip: {
                     backgroundColor: currentTheme.color1,
                     titleColor: currentTheme.color4,
@@ -561,31 +602,47 @@ function drawChartCanvas(labels, headers, rows, isStacked) {
                             let label = context.dataset.label || '';
                             if (label) label += ': ';
                             if (context.parsed.y !== null) {
-                                label += new Intl.NumberFormat('ja-JP', { style: 'currency', currency: 'JPY' }).format(context.parsed.y);
+                                const val = context.parsed.y;
+                                const formatted = new Intl.NumberFormat('ja-JP', { style: 'currency', currency: 'JPY' }).format(val);
+                                // プラス記号付与
+                                if (isDiff && val > 0) label += '+' + formatted.replace('￥', ''); 
+                                else label += formatted;
                             }
                             return label;
                         }
                     }
                 },
-                legend: { position: 'bottom', labels: { color: '#636e72' } }
+                legend: { position: 'bottom', display: !isDiff, labels: { color: '#636e72' } } // 増減は凡例不要（1つだけだから）
             },
             scales: {
                 x: { grid: { display: false }, ticks: { color: '#636e72' } },
                 y: {
-                    stacked: isStacked,
+                    stacked: isStacked && !isDiff, // 増減モードはスタックしない
                     grid: { color: '#dfe6e9' },
                     ticks: {
                         color: '#636e72',
                         callback: function (value) {
-                            if (value >= 100000000) return (value / 100000000).toFixed(1) + '億円';
-                            if (value >= 10000) return (value / 10000).toFixed(0) + '万円';
-                            return '¥' + value.toLocaleString();
+                            const absVal = Math.abs(value);
+                            let text = '';
+                            if (absVal >= 100000000) text = (value / 100000000).toFixed(1) + '億円';
+                            else if (absVal >= 10000) text = (value / 10000).toFixed(0) + '万円';
+                            else text = '¥' + value.toLocaleString();
+                            
+                            if (isDiff && value > 0) return '+' + text.replace('¥','');
+                            return text;
                         }
                     }
                 }
             }
         }
     });
+
+    // 増減モードと積み上げは排他的にする (UI連動)
+    if (isDiff) {
+        document.getElementById('mf-chart-stack-check').disabled = true;
+    } else {
+        document.getElementById('mf-chart-stack-check').disabled = false;
+    }
 }
 
 function copyGraphImage() {
