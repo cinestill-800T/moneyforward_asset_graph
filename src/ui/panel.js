@@ -25,7 +25,7 @@ export function createPanel() {
     <div id="mf-extension-header">
       <div class="mf-title">
         <span class="mf-icon-wrapper">${iconSvg}</span>
-        <span>MoneyForward Enhancer <span style="font-size:10px; opacity:0.8; margin-left:5px;">v${EXTENSION_VERSION}</span></span>
+        <span>Asset Graph <span style="font-size:10px; opacity:0.8; margin-left:5px;">v${EXTENSION_VERSION}</span></span>
       </div>
       <div class="mf-header-actions">
           <div class="mf-header-btn" id="mf-btn-settings" title="設定">
