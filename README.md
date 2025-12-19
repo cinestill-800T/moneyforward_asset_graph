@@ -2,7 +2,7 @@
 
 マネーフォワード ME の資産推移を美しいグラフで可視化する Google Chrome 拡張機能です。過去データのCSV一括ダウンロードも可能。
 
-![Version](https://img.shields.io/badge/version-2.1.0-blue.svg)
+![Version](https://img.shields.io/badge/version-2.2.0-blue.svg)
 ![Chrome](https://img.shields.io/badge/Chrome-Extension-4285F4?logo=googlechrome&logoColor=white)
 [![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-support%20my%20work-FFDD00?style=flat&logo=buy-me-a-coffee&logoColor=white)](https://www.buymeacoffee.com/cinestill_800t)
 
@@ -14,6 +14,7 @@
 
 - **折れ線グラフ**: 資産合計の推移を直感的に把握
 - **積み上げグラフ**: 預金・株式・投資信託などの内訳表示
+- **増減（差分）グラフ**: 前回からの資産増減を棒グラフで表示（NEW!）
 - **柔軟なフィルタリング**: 期間指定、特定日抽出、月末判定など
 - **20種類のカラーテーマ**: お好みの配色でグラフを表示
 
