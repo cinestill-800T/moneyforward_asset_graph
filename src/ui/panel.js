@@ -110,7 +110,7 @@ export function createPanel() {
       </div>
 
       <div style="margin-top: 20px; text-align: center;">
-        <a href="https://www.buymeacoffee.com/YOUR_USERNAME" target="_blank" class="mf-btn-donate" title="開発者を支援する">
+        <a href="https://www.buymeacoffee.com/cinestill_800t" target="_blank" class="mf-btn-donate" title="開発者を支援する">
            <img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 40px !important; width: 145px !important;" >
         </a>
       </div>
