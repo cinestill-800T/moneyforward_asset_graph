@@ -1,6 +1,6 @@
 # Privacy Policy - MoneyForward Asset Graph
 
-Last Updated: December 19, 2024
+Last Updated: December 20, 2025
 
 ## Overview
 
@@ -51,4 +51,4 @@ If you have any questions about this privacy policy, please open an issue on our
 
 ---
 
-© 2024 MoneyForward Asset Graph
+© 2025 MoneyForward Asset Graph
