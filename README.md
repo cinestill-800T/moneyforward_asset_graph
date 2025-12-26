@@ -2,7 +2,7 @@
 
 マネーフォワード ME の資産推移を美しいグラフで可視化する Google Chrome 拡張機能です。表示データのCSV保存も可能。
 
-![Version](https://img.shields.io/badge/version-2.3.0-blue.svg)
+![Version](https://img.shields.io/badge/version-2.3.1-blue.svg)
 ![Chrome](https://img.shields.io/badge/Chrome-Extension-4285F4?logo=googlechrome&logoColor=white)
 [![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-support%20my%20work-FFDD00?style=flat&logo=buy-me-a-coffee&logoColor=white)](https://www.buymeacoffee.com/cinestill_800t)
 
