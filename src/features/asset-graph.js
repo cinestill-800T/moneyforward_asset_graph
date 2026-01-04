@@ -86,7 +86,7 @@ export function showGraphModal(initialData = null) {
                             <input type="checkbox" id="mf-check-day" checked>
                             <label for="mf-check-day">日付:</label>
                             <select id="mf-select-day" class="mf-select-sm" style="width: 50px;">
-                                ${Array.from({ length: 31 }, (_, i) => `<option value="${i + 1}" ${i + 1 === 25 ? 'selected' : ''}>${i + 1}</option>`).join('')}
+                                ${Array.from({ length: 31 }, (_, i) => `<option value="${i + 1}" ${i + 1 === new Date().getDate() ? 'selected' : ''}>${i + 1}</option>`).join('')}
                             </select>
                         </div>
 
