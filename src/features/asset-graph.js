@@ -45,6 +45,7 @@ export function showGraphModal(initialData = null) {
                         <button type="button" class="mf-quick-btn" data-period="5">5年</button>
                         <button type="button" class="mf-quick-btn active" data-period="10">10年</button>
                         <button type="button" class="mf-quick-btn" data-period="all">全期間</button>
+                        <button type="button" id="mf-prediction-btn" class="mf-quick-btn" data-period="predict" title="過去データから未来を予測">未来予測</button>
                     </div>
                     
                     <!-- Advanced Period Toggle -->
@@ -270,11 +271,16 @@ export function showGraphModal(initialData = null) {
 
     // クイック期間ボタン
     const quickPeriodBtns = document.querySelectorAll('.mf-quick-btn');
+    const predictionBtn = document.getElementById('mf-prediction-btn');
+
     quickPeriodBtns.forEach(btn => {
         btn.addEventListener('click', () => {
             // 他のボタンの選択解除
             quickPeriodBtns.forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
+
+            // 予測モードをオフに
+            predictionBtn.classList.remove('active');
 
             // モードをrelativeに設定
             document.querySelector('input[name="mf-mode"][value="relative"]').checked = true;
@@ -283,6 +289,12 @@ export function showGraphModal(initialData = null) {
 
             updateGraph();
         });
+    });
+
+    // 未来予測ボタン
+    predictionBtn.addEventListener('click', () => {
+        predictionBtn.classList.toggle('active');
+        updateGraph();
     });
 
     // 詳細期間パネルトグル
@@ -589,8 +601,9 @@ export function updateGraph() {
     const labels = rows.map(r => r[0]);
     const isStacked = document.getElementById('mf-chart-stack-check').checked;
     const isDiff = document.getElementById('mf-chart-diff-check').checked;
+    const isPrediction = document.getElementById('mf-prediction-btn')?.classList.contains('active') || false;
 
-    drawChartCanvas(labels, headers, rows, isStacked, isDiff);
+    drawChartCanvas(labels, headers, rows, isStacked, isDiff, isPrediction);
 }
 
 // ヘルパー
@@ -601,7 +614,7 @@ function hexToRgbObj(hex) {
     return { r, g, b };
 }
 
-function drawChartCanvas(labels, headers, rows, isStacked, isDiff) {
+function drawChartCanvas(labels, headers, rows, isStacked, isDiff, isPrediction = false) {
     if (globalChart) globalChart.destroy();
     const ctx = document.getElementById('mf-chart').getContext('2d');
 
@@ -612,6 +625,10 @@ function drawChartCanvas(labels, headers, rows, isStacked, isDiff) {
         currentTheme.color3,
         currentTheme.color4
     ];
+
+    // 予測用の変数
+    let allLabels = [...labels];
+    let predictionStartIndex = labels.length;
 
     if (isDiff) {
         // --- 増減モード (Bar Chart) ---
@@ -679,9 +696,11 @@ function drawChartCanvas(labels, headers, rows, isStacked, isDiff) {
         gradient.addColorStop(0, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.4)`);
         gradient.addColorStop(1, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.0)`);
 
+        const actualData = rows.map(r => parseInt(r[1] || 0, 10));
+
         datasets.push({
             label: '資産合計',
-            data: rows.map(r => parseInt(r[1] || 0, 10)),
+            data: actualData,
             backgroundColor: gradient,
             borderColor: currentTheme.color1,
             borderWidth: 3,
@@ -689,6 +708,51 @@ function drawChartCanvas(labels, headers, rows, isStacked, isDiff) {
             pointRadius: rows.length > 50 ? 0 : 4,
             pointHoverRadius: 6
         });
+
+        // --- 予測モード ---
+        if (isPrediction && rows.length >= 2) {
+            // CAGR計算（年平均成長率）
+            const firstDate = new Date(rows[0][0]);
+            const lastDate = new Date(rows[rows.length - 1][0]);
+            const firstVal = parseInt(rows[0][1] || 0, 10);
+            const lastVal = parseInt(rows[rows.length - 1][1] || 0, 10);
+
+            const yearsDiff = (lastDate - firstDate) / (1000 * 60 * 60 * 24 * 365.25);
+            const cagr = yearsDiff > 0 && firstVal > 0 ? Math.pow(lastVal / firstVal, 1 / yearsDiff) - 1 : 0;
+
+            // 5年分（60ヶ月）の予測データを生成
+            const predictionMonths = 60;
+            const predictionData = new Array(actualData.length - 1).fill(null); // 実績部分はnull
+            predictionData.push(lastVal); // 最後の実績値から開始
+
+            for (let m = 1; m <= predictionMonths; m++) {
+                const futureDate = new Date(lastDate);
+                futureDate.setMonth(futureDate.getMonth() + m);
+                const dateStr = futureDate.toISOString().split('T')[0];
+                allLabels.push(dateStr);
+
+                const monthlyGrowth = Math.pow(1 + cagr, m / 12);
+                predictionData.push(Math.round(lastVal * monthlyGrowth));
+            }
+
+            // 予測データセット（点線）
+            const predictionRgb = hexToRgbObj('#f5a623');
+            const predictionGradient = ctx.createLinearGradient(0, 0, 0, 400);
+            predictionGradient.addColorStop(0, `rgba(${predictionRgb.r}, ${predictionRgb.g}, ${predictionRgb.b}, 0.2)`);
+            predictionGradient.addColorStop(1, `rgba(${predictionRgb.r}, ${predictionRgb.g}, ${predictionRgb.b}, 0.0)`);
+
+            datasets.push({
+                label: `予測 (CAGR ${(cagr * 100).toFixed(1)}%)`,
+                data: predictionData,
+                backgroundColor: predictionGradient,
+                borderColor: '#f5a623',
+                borderWidth: 2,
+                borderDash: [8, 4], // 点線
+                fill: true,
+                pointRadius: 0,
+                pointHoverRadius: 4
+            });
+        }
     }
 
     // データラベル表示プラグイン
@@ -769,7 +833,7 @@ function drawChartCanvas(labels, headers, rows, isStacked, isDiff) {
 
     globalChart = new Chart(ctx, {
         type: isDiff ? 'bar' : 'line',
-        data: { labels, datasets },
+        data: { labels: allLabels, datasets },
         plugins: [dataLabelPlugin],
         options: {
             responsive: true,
@@ -801,6 +865,7 @@ function drawChartCanvas(labels, headers, rows, isStacked, isDiff) {
 
                             return ['資産増減（前回比）', totalText];
                         }
+                        if (isPrediction) return '資産推移（5年予測）';
                         return isStacked ? '資産推移（内訳）' : '資産推移（合計）';
                     })(),
                     font: { size: 16 },
