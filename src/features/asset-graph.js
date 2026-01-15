@@ -269,8 +269,8 @@ export function showGraphModal(initialData = null) {
         });
     });
 
-    // クイック期間ボタン
-    const quickPeriodBtns = document.querySelectorAll('.mf-quick-btn');
+    // クイック期間ボタン（予測ボタンを除外）
+    const quickPeriodBtns = document.querySelectorAll('.mf-quick-btn:not(#mf-prediction-btn)');
     const predictionBtn = document.getElementById('mf-prediction-btn');
 
     quickPeriodBtns.forEach(btn => {
