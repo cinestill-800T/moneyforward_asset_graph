@@ -734,9 +734,9 @@ function drawChartCanvas(labels, headers, rows, isStacked, isDiff) {
                     const color = dataset.borderColor instanceof Array ? dataset.borderColor[index] : dataset.borderColor || '#636e72';
 
                     // 位置調整
-                    // Bar Chartの場合はバーの上/下におく
-                    let labelY = y - 12;
-                    if (isDiff && value < 0) labelY = y + 12; // 下向きバーなら下に
+                    // Bar Chartの場合はバーの上/下におく（グリッド線と重ならないようにオフセット）
+                    let labelY = y - 18;
+                    if (isDiff && value < 0) labelY = y + 22; // 下向きバーなら下に（グリッド線を避ける）
 
                     // Halo Effect
                     ctx.save();
