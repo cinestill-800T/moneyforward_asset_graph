@@ -783,6 +783,10 @@ function drawChartCanvas(labels, headers, rows, isStacked, isDiff, isPrediction 
 
                     const value = dataset.data[index];
                     if (value === null || value === undefined) return;
+
+                    // 予測データセットの最初のポイント（実績との重複点）はスキップ
+                    if (dataset.label && dataset.label.includes('予測') && isFirstPoint) return;
+
                     // 増減モードで0の場合は表示しない（邪魔だから）
                     if (isDiff && value === 0) return;
 
