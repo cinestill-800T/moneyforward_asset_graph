@@ -848,7 +848,7 @@ function drawChartCanvas(labels, headers, rows, isStacked, isDiff, isPrediction 
             interaction: { mode: 'index', intersect: false },
             stacked: isStacked, // Bar Chartでも累積したい？いや増減の場合は累積しないほうがいいか。今回はTotalのみなのでfalse
             layout: {
-                padding: { top: 20, bottom: isDiff ? 20 : 0 }
+                padding: { top: 20, bottom: isDiff ? 20 : 0, right: 40 }
             },
             plugins: {
                 title: {
