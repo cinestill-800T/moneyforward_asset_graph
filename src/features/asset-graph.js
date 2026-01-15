@@ -760,9 +760,11 @@ function drawChartCanvas(labels, headers, rows, isStacked, isDiff, isPrediction 
         id: 'dataLabelPlugin',
         afterDatasetsDraw: (chart) => {
             const { ctx, data } = chart;
-            const DATA_LABEL_THRESHOLD = 40;
+            const MAX_LABELS = 20; // 最大表示ラベル数
+            const totalPoints = data.labels.length;
 
-            if (data.labels.length > DATA_LABEL_THRESHOLD) return;
+            // 動的に間引き間隔を計算（常に最大MAX_LABELS個のラベルを表示）
+            const skipInterval = totalPoints <= MAX_LABELS ? 1 : Math.ceil(totalPoints / MAX_LABELS);
 
             ctx.save();
             ctx.textAlign = 'center';
@@ -774,6 +776,11 @@ function drawChartCanvas(labels, headers, rows, isStacked, isDiff, isPrediction 
                 if (meta.hidden) return;
 
                 meta.data.forEach((element, index) => {
+                    // 間引き条件：skipInterval毎、または最後のポイント
+                    const isLastPoint = index === meta.data.length - 1;
+                    const isFirstPoint = index === 0;
+                    if (skipInterval > 1 && !isFirstPoint && !isLastPoint && index % skipInterval !== 0) return;
+
                     const value = dataset.data[index];
                     if (value === null || value === undefined) return;
                     // 増減モードで0の場合は表示しない（邪魔だから）
