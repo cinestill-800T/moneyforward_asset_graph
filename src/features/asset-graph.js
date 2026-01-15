@@ -870,7 +870,21 @@ function drawChartCanvas(labels, headers, rows, isStacked, isDiff) {
 function copyGraphImage() {
     const canvas = document.getElementById('mf-chart');
     if (!canvas) return;
-    canvas.toBlob(blob => {
+
+    // 白背景付きの画像を作成
+    const tempCanvas = document.createElement('canvas');
+    tempCanvas.width = canvas.width;
+    tempCanvas.height = canvas.height;
+    const tempCtx = tempCanvas.getContext('2d');
+
+    // 白背景を描画
+    tempCtx.fillStyle = '#ffffff';
+    tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+
+    // 元のグラフを重ねる
+    tempCtx.drawImage(canvas, 0, 0);
+
+    tempCanvas.toBlob(blob => {
         const item = new ClipboardItem({ 'image/png': blob });
         navigator.clipboard.write([item]).then(() => alert('画像をコピーしました')).catch(e => alert('失敗しました'));
     });
