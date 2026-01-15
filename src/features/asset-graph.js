@@ -291,9 +291,15 @@ export function showGraphModal(initialData = null) {
         });
     });
 
-    // 未来予測ボタン
+    // 未来予測ボタン：増減モードとは排他的
     predictionBtn.addEventListener('click', () => {
         predictionBtn.classList.toggle('active');
+
+        // 予測ONの場合は増減モードをOFFに
+        if (predictionBtn.classList.contains('active')) {
+            document.getElementById('mf-chart-diff-check').checked = false;
+        }
+
         updateGraph();
     });
 
@@ -403,7 +409,16 @@ export function showGraphModal(initialData = null) {
 
     // グラフ更新トリガー
     document.getElementById('mf-chart-stack-check').addEventListener('change', updateGraph);
-    document.getElementById('mf-chart-diff-check').addEventListener('change', updateGraph);
+
+    // 増減モード：予測とは排他的
+    const diffCheck = document.getElementById('mf-chart-diff-check');
+    diffCheck.addEventListener('change', () => {
+        if (diffCheck.checked) {
+            // 増減モードON時は予測をOFFに
+            document.getElementById('mf-prediction-btn').classList.remove('active');
+        }
+        updateGraph();
+    });
 
     document.getElementById('mf-copy-data').addEventListener('click', copyGraphData);
     document.getElementById('mf-copy-image').addEventListener('click', copyGraphImage);
@@ -760,7 +775,8 @@ function drawChartCanvas(labels, headers, rows, isStacked, isDiff, isPrediction 
         id: 'dataLabelPlugin',
         afterDatasetsDraw: (chart) => {
             const { ctx, data } = chart;
-            const MAX_LABELS = 20; // 最大表示ラベル数
+            // 増減モード時はラベルを減らして見やすく
+            const MAX_LABELS = isDiff ? 12 : 20;
             const totalPoints = data.labels.length;
 
             // 動的に間引き間隔を計算（常に最大MAX_LABELS個のラベルを表示）
