@@ -615,15 +615,20 @@ function drawChartCanvas(labels, headers, rows, isStacked, isDiff) {
 
     if (isDiff) {
         // --- 増減モード (Bar Chart) ---
-        // 差分データの生成
+        // 差分データと割合データの生成
         const diffData = [];
+        const percentData = []; // 割合データ
         // [0]は前回がないので0 or null
         diffData.push(0);
+        percentData.push(0);
 
         for (let i = 1; i < rows.length; i++) {
             const currentTotal = parseInt(rows[i][1] || 0, 10);
             const prevTotal = parseInt(rows[i - 1][1] || 0, 10);
             diffData.push(currentTotal - prevTotal);
+            // 割合計算（前回が0の場合は0%）
+            const percent = prevTotal !== 0 ? ((currentTotal - prevTotal) / prevTotal) * 100 : 0;
+            percentData.push(percent);
         }
 
         // ラベルはそのまま日付を使う
@@ -635,6 +640,7 @@ function drawChartCanvas(labels, headers, rows, isStacked, isDiff) {
         datasets.push({
             label: '前回比増減',
             data: diffData,
+            percentData: percentData, // 割合データを格納
             backgroundColor: backgroundColors,
             borderColor: borderColors,
             borderWidth: 1,
@@ -716,8 +722,13 @@ function drawChartCanvas(labels, headers, rows, isStacked, isDiff) {
                     else if (absVal >= 10000) text = (value / 10000).toFixed(0) + '万';
                     else text = value.toLocaleString();
 
-                    // 増減モードなら + を付ける
+                    // 増減モードなら + を付ける & 割合を追加
                     if (isDiff && value > 0) text = '+' + text;
+                    if (isDiff && dataset.percentData && dataset.percentData[index] !== undefined) {
+                        const pct = dataset.percentData[index];
+                        const pctText = pct >= 0 ? `+${pct.toFixed(1)}%` : `${pct.toFixed(1)}%`;
+                        text += ` (${pctText})`;
+                    }
 
                     const { x, y } = element.tooltipPosition();
                     const color = dataset.borderColor instanceof Array ? dataset.borderColor[index] : dataset.borderColor || '#636e72';
@@ -767,9 +778,14 @@ function drawChartCanvas(labels, headers, rows, isStacked, isDiff) {
                             const lastVal = parseInt(rows[rows.length - 1][1] || 0, 10);
                             const totalDiff = lastVal - firstVal;
 
+                            // 期間全体の割合計算（最初の値に対する増減率）
+                            const totalPercent = firstVal !== 0 ? ((lastVal - firstVal) / firstVal) * 100 : 0;
+                            const percentSign = totalPercent >= 0 ? '+' : '';
+                            const percentText = `${percentSign}${totalPercent.toFixed(1)}%`;
+
                             const formattedTotal = new Intl.NumberFormat('ja-JP', { style: 'currency', currency: 'JPY' }).format(totalDiff);
                             const sign = totalDiff > 0 ? '+' : '';
-                            const totalText = `期間合計: ${sign}${formattedTotal}`.replace('￥', '¥');
+                            const totalText = `期間合計: ${sign}${formattedTotal} (${percentText})`.replace('￥', '¥');
 
                             return ['資産増減（前回比）', totalText];
                         }
@@ -789,9 +805,18 @@ function drawChartCanvas(labels, headers, rows, isStacked, isDiff) {
                             if (context.parsed.y !== null) {
                                 const val = context.parsed.y;
                                 const formatted = new Intl.NumberFormat('ja-JP', { style: 'currency', currency: 'JPY' }).format(val);
-                                // プラス記号付与
+                                // プラス記号付与 & 割合追加
                                 if (isDiff && val > 0) label += '+' + formatted.replace('￥', '');
                                 else label += formatted;
+
+                                // 増減モード時に割合を追加
+                                if (isDiff && context.dataset.percentData) {
+                                    const pct = context.dataset.percentData[context.dataIndex];
+                                    if (pct !== undefined) {
+                                        const pctText = pct >= 0 ? `+${pct.toFixed(2)}%` : `${pct.toFixed(2)}%`;
+                                        label += ` (${pctText})`;
+                                    }
+                                }
                             }
                             return label;
                         }
