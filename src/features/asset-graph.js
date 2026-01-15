@@ -734,9 +734,21 @@ function drawChartCanvas(labels, headers, rows, isStacked, isDiff) {
                     const color = dataset.borderColor instanceof Array ? dataset.borderColor[index] : dataset.borderColor || '#636e72';
 
                     // 位置調整
-                    // Bar Chartの場合はバーの上/下におく（グリッド線と重ならないようにオフセット）
-                    let labelY = y - 18;
-                    if (isDiff && value < 0) labelY = y + 22; // 下向きバーなら下に（グリッド線を避ける）
+                    // すべてのラベルをバーの上端に配置（マイナスも0ライン付近に）
+                    // element.y はバーの上端（プラスの場合）または下端（マイナスの場合）
+                    // element.base は0ラインの位置
+                    let labelY;
+                    if (isDiff) {
+                        if (value >= 0) {
+                            // プラス値: バーの上に表示
+                            labelY = element.y - 14;
+                        } else {
+                            // マイナス値: 0ライン（base）の少し上に表示
+                            labelY = element.base - 14;
+                        }
+                    } else {
+                        labelY = element.y - 14;
+                    }
 
                     // Halo Effect
                     ctx.save();
