@@ -1,10 +1,11 @@
-import { EXTENSION_VERSION, currentTheme, loadTheme } from './config.js';
+import { EXTENSION_VERSION, currentTheme, loadTheme, loadDarkMode } from './config.js';
 import { createPanel } from '../ui/panel.js';
 
 console.log('MoneyForward Asset Graph: Module Loaded v' + EXTENSION_VERSION);
 
 // 設定ロード
 loadTheme();
+loadDarkMode();
 
 // ログ出力
 console.log(`%c MoneyForward Asset Graph v${EXTENSION_VERSION} Loaded `, `background: linear-gradient(135deg, ${currentTheme.color1}, ${currentTheme.color2}); color: #fff; font-weight: bold; padding: 4px;`);

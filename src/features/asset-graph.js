@@ -1,4 +1,4 @@
-import { EXTENSION_VERSION, currentTheme } from '../core/config.js';
+import { currentTheme, isDarkMode } from '../core/config.js';
 import { fetchData, generateCSV, downloadCSV, formatDate } from '../api/client.js';
 
 let globalChart = null;
@@ -22,8 +22,8 @@ export function showGraphModal(initialData = null) {
             <!-- Header -->
             <div class="mf-modal-header" style="flex-shrink: 0; display:flex; justify-content:space-between; align-items:center; padding: 10px 15px;">
                 <div style="display:flex; align-items:center; gap:15px;">
-                    <div class="mf-modal-title" style="margin:0;">資産推移グラフ設定</div>
-                    <div id="mf-status-msg" style="font-size: 12px; color: #636e72;"></div>
+                    <div class="mf-modal-title" style="margin:0;">資産推移グラフ</div>
+                    <div id="mf-status-msg" style="font-size: 12px; color: var(--mf-text-sub);"></div>
                 </div>
                 <div style="display:flex; align-items:center; gap:10px;">
                     <button class="mf-modal-btn mf-modal-btn-primary" id="mf-modal-fetch">再取得・描画</button>
@@ -31,12 +31,12 @@ export function showGraphModal(initialData = null) {
                 </div>
             </div>
 
-            <!-- Controls Area (Modern & Simplified) -->
-            <div style="background: #f8f9fa; border-bottom: 1px solid #dfe6e9; padding: 12px 15px; flex-shrink: 0; font-size: 13px;">
+            <!-- Controls Area (Simplified) -->
+            <div style="background: var(--mf-bg-secondary); border-bottom: 1px solid var(--mf-border); padding: 12px 15px; flex-shrink: 0; font-size: 13px;">
                 
                 <!-- Row 1: Quick Period Buttons -->
-                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
-                    <div style="font-weight: bold; color: #2d3436; min-width: 40px;">期間:</div>
+                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 10px;">
+                    <div style="font-weight: bold; color: var(--mf-text-main); min-width: 40px;">期間:</div>
                     
                     <!-- Quick Period Button Group -->
                     <div class="mf-quick-period-group">
@@ -58,13 +58,13 @@ export function showGraphModal(initialData = null) {
                 </div>
                 
                 <!-- Advanced Period Options (Hidden by default) -->
-                <div id="mf-advanced-period-panel" style="display: none; margin-bottom: 12px; padding: 10px; background: #fff; border-radius: 8px; border: 1px solid #e0e0e0;">
+                <div id="mf-advanced-period-panel" style="display: none; margin-bottom: 10px; padding: 10px; background: var(--mf-control-bg); border-radius: 8px; border: 1px solid var(--mf-border);">
                     <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
                         <label class="mf-radio-label"><input type="radio" name="mf-mode" value="relative" checked> クイック期間</label>
                         <label class="mf-radio-label"><input type="radio" name="mf-mode" value="year"> 指定年</label>
                         <label class="mf-radio-label"><input type="radio" name="mf-mode" value="range"> 期間指定</label>
                         
-                        <div style="width: 1px; height: 20px; background: #ddd;"></div>
+                        <div style="width: 1px; height: 20px; background: var(--mf-border);"></div>
                         
                         <div id="mf-mode-year-opts" class="mf-mode-opts" style="display: none; align-items: center; gap: 5px;">
                             <select id="mf-select-year" class="mf-select" style="width: 90px; height: 28px;"></select>
@@ -78,11 +78,10 @@ export function showGraphModal(initialData = null) {
                     </div>
                 </div>
                 
-                <!-- Row 2: Extraction Options -->
+                <!-- Row 2: Extraction (Simplified - day select only) -->
                 <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
-                    <div style="font-weight: bold; color: #2d3436; min-width: 40px;">抽出:</div>
+                    <div style="font-weight: bold; color: var(--mf-text-main); min-width: 40px;">抽出:</div>
                     
-                    <!-- Day Extraction (Primary) -->
                     <div class="mf-filter-group-modern">
                         <select id="mf-select-day" class="mf-select-modern">
                             <option value="">全日</option>
@@ -91,109 +90,77 @@ export function showGraphModal(initialData = null) {
                         </select>
                         <span class="mf-filter-hint">を抽出</span>
                     </div>
-                    
-                    <div style="width: 1px; height: 20px; background: #ddd;"></div>
-                    
-                    <!-- Quick Extract Presets -->
-                    <div class="mf-extract-presets">
-                        <label class="mf-chip-label">
-                            <input type="radio" name="mf-extract-preset" value="none" checked>
-                            <span class="mf-chip">カスタム</span>
-                        </label>
-                        <label class="mf-chip-label">
-                            <input type="radio" name="mf-extract-preset" value="quarter">
-                            <span class="mf-chip">四半期末</span>
-                        </label>
-                        <label class="mf-chip-label">
-                            <input type="radio" name="mf-extract-preset" value="half">
-                            <span class="mf-chip">半期末</span>
-                        </label>
-                        <label class="mf-chip-label">
-                            <input type="radio" name="mf-extract-preset" value="yearstart">
-                            <span class="mf-chip">年始</span>
-                        </label>
-                    </div>
-                    
-                    <!-- Advanced Options Toggle -->
-                    <button type="button" id="mf-advanced-filter-toggle" class="mf-link-btn">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M19 9l-7 7-7-7"/>
-                        </svg>
-                        詳細オプション
-                    </button>
-                </div>
-                
-                <!-- Advanced Filter Options (Hidden by default) -->
-                <div id="mf-advanced-filter-panel" style="display: none; margin-top: 12px; padding: 10px; background: #fff; border-radius: 8px; border: 1px solid #e0e0e0;">
-                    <div style="display: flex; align-items: center; gap: 20px; flex-wrap: wrap;">
-                        <div class="mf-filter-group">
-                            <input type="checkbox" id="mf-check-month">
-                            <label for="mf-check-month">特定月のみ:</label>
-                            <select id="mf-select-month" class="mf-select-sm" disabled>
-                                ${Array.from({ length: 12 }, (_, i) => `<option value="${i + 1}">${i + 1}月</option>`).join('')}
-                            </select>
-                        </div>
-                        
-                        <div class="mf-filter-group">
-                            <input type="checkbox" id="mf-check-interval">
-                            <label for="mf-check-interval">間引き:</label>
-                            <select id="mf-select-interval" class="mf-select-sm" disabled>
-                                <option value="3">3ヶ月</option>
-                                <option value="6">6ヶ月</option>
-                                <option value="12">1年</option>
-                            </select>
-                        </div>
-                    </div>
                 </div>
                 
             </div>
 
             <!-- Graph Body -->
-            <div class="mf-modal-body" style="flex: 1; position: relative; min-height: 0;">
-                <div id="mf-modal-loading" style="position:absolute; top:0; left:0; width:100%; height:100%; background:rgba(255,255,255,0.8); z-index:10; display:none; justify-content:center; align-items:center; flex-direction:column;">
-                    <div style="font-weight:bold; color:#313647; margin-bottom:10px;">データ取得中...</div>
-                    <div style="width:200px; height:4px; background:#ddd; border-radius:2px;"><div id="mf-modal-progress" style="width:0%; height:100%; background:#A3B087;"></div></div>
+            <div class="mf-modal-body" style="flex: 1; position: relative; min-height: 0; display: flex; flex-direction: column;">
+                <div id="mf-modal-loading" style="position:absolute; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.05); z-index:10; display:none; justify-content:center; align-items:center; flex-direction:column;">
+                    <div style="font-weight:bold; color:var(--mf-text-main); margin-bottom:10px;">データ取得中...</div>
+                    <div style="width:200px; height:4px; background:var(--mf-bg-hover); border-radius:2px;"><div id="mf-modal-progress" style="width:0%; height:100%; background:linear-gradient(90deg, var(--mf-color-1), var(--mf-color-2)); border-radius:2px; transition: width 0.3s;"></div></div>
                 </div>
-                <canvas id="mf-chart"></canvas>
-                <div id="mf-no-data-msg" style="display:none; position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); text-align:center; color:#888;">
-                    <p>表示できるデータがありません。<br>条件を変更して「再取得・描画」を押してください。</p>
+                <div style="flex: 1; min-height: 0; position: relative;">
+                    <canvas id="mf-chart"></canvas>
+                    <div id="mf-no-data-msg" style="display:none; position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); text-align:center; color:var(--mf-text-sub);">
+                        <p>表示できるデータがありません。<br>条件を変更して「再取得・描画」を押してください。</p>
+                    </div>
                 </div>
+                <!-- Summary Table Area -->
+                <div id="mf-summary-area" style="display:none; flex-shrink:0;"></div>
             </div>
 
             <!-- Footer -->
-            <div class="mf-modal-footer" style="flex-shrink: 0; padding: 10px 15px;">
-                    <div style="margin-right:auto; display:flex; align-items:center; gap:5px;">
+            <div class="mf-modal-footer" style="flex-shrink: 0; padding: 10px 15px; flex-wrap: wrap; align-items: center;">
+                <div style="margin-right:auto; display:flex; align-items:center; gap:14px; flex-wrap: wrap;">
+                    <label style="display:flex; align-items:center; gap:5px; font-size:12px; cursor:pointer;">
                         <input type="checkbox" id="mf-chart-stack-check">
-                        <label for="mf-chart-stack-check" style="font-size:12px; cursor:pointer;">内訳を積み上げ表示する</label>
-                    </div>
-                    <div style="margin-right:15px; display:flex; align-items:center; gap:5px;">
+                        積み上げ
+                    </label>
+                    <label style="display:flex; align-items:center; gap:5px; font-size:12px; cursor:pointer;">
                         <input type="checkbox" id="mf-chart-diff-check">
-                        <label for="mf-chart-diff-check" style="font-size:12px; cursor:pointer;">前回の点からの増減を表示</label>
-                    </div>
-                <button class="mf-modal-btn mf-modal-btn-close" id="mf-download-csv">CSV保存</button>
-                <button class="mf-modal-btn mf-modal-btn-close" id="mf-copy-data">CSVコピー</button>
-                <button class="mf-modal-btn mf-modal-btn-copy" id="mf-copy-image">画像コピー</button>
+                        増減表示
+                    </label>
+                    <div style="width:1px; height:16px; background:var(--mf-border);"></div>
+                    <label style="display:flex; align-items:center; gap:5px; font-size:12px; cursor:pointer;">
+                        <input type="checkbox" id="mf-chart-ma-check">
+                        移動平均
+                    </label>
+                    <select id="mf-ma-period" class="mf-select-modern" style="min-width:70px; font-size:11px; padding:4px 6px; height:26px;" disabled>
+                        <option value="3">3ヶ月</option>
+                        <option value="6">6ヶ月</option>
+                        <option value="12" selected>12ヶ月</option>
+                    </select>
+                    <div style="width:1px; height:16px; background:var(--mf-border);"></div>
+                    <button class="mf-modal-btn mf-modal-btn-close" id="mf-toggle-summary" style="padding:6px 12px; font-size:11px;">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/>
+                        </svg>
+                        サマリー
+                    </button>
+                </div>
+                <button class="mf-modal-btn mf-modal-btn-close" id="mf-download-csv" style="padding:6px 12px; font-size:11px;">CSV保存</button>
+                <button class="mf-modal-btn mf-modal-btn-close" id="mf-copy-data" style="padding:6px 12px; font-size:11px;">CSVコピー</button>
+                <button class="mf-modal-btn mf-modal-btn-copy" id="mf-copy-image" style="padding:6px 12px; font-size:11px;">画像コピー</button>
             </div>
         </div>
 
         <style>
-            .mf-radio-label { font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 4px; user-select: none; }
+            .mf-radio-label { font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 4px; user-select: none; color: var(--mf-text-main); }
             .mf-mode-opts { animation: fadeIn 0.1s; }
-            .mf-input-date { padding: 3px 6px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; font-family: sans-serif; }
-            .mf-filter-group { display: flex; align-items: center; gap: 5px; font-size: 12px; background: transparent; border: none; padding: 0; }
-            .mf-select-sm { padding: 1px 2px; border: 1px solid #ccc; border-radius: 3px; font-size: 12px; height: 22px; }
+            .mf-input-date { padding: 3px 6px; border: 1px solid var(--mf-border); border-radius: 4px; font-size: 13px; font-family: sans-serif; background: var(--mf-control-bg); color: var(--mf-text-main); }
             @keyframes fadeIn { from { opacity: 0; transform: translateY(-2px); } to { opacity: 1; transform: translateY(0); } }
             
             /* Quick Period Button Group */
             .mf-quick-period-group { display: flex; gap: 0; }
             .mf-quick-btn {
-                padding: 6px 14px; border: 1px solid #ddd; background: #fff; color: #555;
+                padding: 6px 14px; border: 1px solid var(--mf-border); background: var(--mf-control-bg); color: var(--mf-text-sub);
                 font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.15s;
             }
             .mf-quick-btn:first-child { border-radius: 6px 0 0 6px; }
             .mf-quick-btn:last-child { border-radius: 0 6px 6px 0; }
             .mf-quick-btn:not(:last-child) { border-right: none; }
-            .mf-quick-btn:hover { background: #f5f5f5; }
+            .mf-quick-btn:hover { background: var(--mf-bg-hover); }
             .mf-quick-btn.active {
                 background: linear-gradient(135deg, var(--mf-color-1, #80A1BA) 0%, var(--mf-color-2, #91C4C3) 100%);
                 color: #fff; border-color: var(--mf-color-1, #80A1BA); font-weight: 600;
@@ -202,35 +169,21 @@ export function showGraphModal(initialData = null) {
             /* Link Button */
             .mf-link-btn {
                 display: flex; align-items: center; gap: 4px; padding: 4px 8px;
-                background: transparent; border: none; color: #666; font-size: 12px;
+                background: transparent; border: none; color: var(--mf-text-sub); font-size: 12px;
                 cursor: pointer; transition: all 0.15s; border-radius: 4px;
             }
-            .mf-link-btn:hover { background: #e8e8e8; color: #333; }
+            .mf-link-btn:hover { background: var(--mf-bg-hover); color: var(--mf-text-main); }
             .mf-link-btn.active svg { transform: rotate(180deg); }
             
             /* Modern Select */
             .mf-filter-group-modern { display: flex; align-items: center; gap: 6px; }
             .mf-select-modern {
-                padding: 6px 10px; border: 1px solid #ddd; border-radius: 6px;
-                font-size: 13px; background: #fff; cursor: pointer; min-width: 100px;
+                padding: 6px 10px; border: 1px solid var(--mf-border); border-radius: 6px;
+                font-size: 13px; background: var(--mf-control-bg); cursor: pointer; min-width: 100px;
+                color: var(--mf-text-main);
             }
             .mf-select-modern:focus { border-color: var(--mf-color-1, #80A1BA); outline: none; box-shadow: 0 0 0 2px rgba(128, 161, 186, 0.2); }
-            .mf-filter-hint { font-size: 12px; color: #888; }
-            
-            /* Chip Labels */
-            .mf-extract-presets { display: flex; gap: 6px; flex-wrap: wrap; }
-            .mf-chip-label { cursor: pointer; }
-            .mf-chip-label input { display: none; }
-            .mf-chip {
-                display: inline-block; padding: 5px 12px; border-radius: 16px;
-                font-size: 12px; background: #f0f0f0; color: #666; border: 1px solid transparent;
-                transition: all 0.15s;
-            }
-            .mf-chip:hover { background: #e8e8e8; }
-            .mf-chip-label input:checked + .mf-chip {
-                background: linear-gradient(135deg, var(--mf-color-1, #80A1BA) 0%, var(--mf-color-2, #91C4C3) 100%);
-                color: #fff; border-color: var(--mf-color-1, #80A1BA);
-            }
+            .mf-filter-hint { font-size: 12px; color: var(--mf-text-sub); }
         </style>
     `;
     document.body.appendChild(modal);
@@ -312,55 +265,11 @@ export function showGraphModal(initialData = null) {
         advPeriodToggle.classList.toggle('active', !isOpen);
     });
 
-    // 詳細フィルターパネルトグル
-    const advFilterToggle = document.getElementById('mf-advanced-filter-toggle');
-    const advFilterPanel = document.getElementById('mf-advanced-filter-panel');
-    advFilterToggle.addEventListener('click', () => {
-        const isOpen = advFilterPanel.style.display !== 'none';
-        advFilterPanel.style.display = isOpen ? 'none' : 'block';
-        advFilterToggle.classList.toggle('active', !isOpen);
-    });
-
     // 日付選択の変更でグラフ更新
     const daySelect = document.getElementById('mf-select-day');
     daySelect.addEventListener('change', () => {
-        // カスタムに戻す
-        document.querySelector('input[name="mf-extract-preset"][value="none"]').checked = true;
         updateGraph();
     });
-
-    // 抽出プリセット
-    const presetRadios = document.querySelectorAll('input[name="mf-extract-preset"]');
-    presetRadios.forEach(radio => {
-        radio.addEventListener('change', (e) => {
-            const val = e.target.value;
-            // プリセット選択時は日付セレクトを適切に設定
-            if (val === 'quarter' || val === 'half' || val === 'yearstart') {
-                // 月末選択に変更（プリセットロジックは後でフィルター時に処理）
-                daySelect.value = 'last';
-            }
-            updateGraph();
-        });
-    });
-
-    // 高度フィルタ切替
-    const toggleFilter = (checkId, selectId) => {
-        const chk = document.getElementById(checkId);
-        const sel = document.getElementById(selectId);
-        if (chk && sel) {
-            chk.addEventListener('change', () => {
-                sel.disabled = !chk.checked;
-                updateGraph();
-            });
-            sel.addEventListener('change', updateGraph);
-        } else if (chk) {
-            chk.addEventListener('change', updateGraph);
-        }
-    };
-
-    toggleFilter('mf-check-month', 'mf-select-month');
-    toggleFilter('mf-check-interval', 'mf-select-interval');
-
 
     const fetchBtn = document.getElementById('mf-modal-fetch');
     const statusMsg = document.getElementById('mf-status-msg');
@@ -376,11 +285,7 @@ export function showGraphModal(initialData = null) {
 
         let yearsToFetch = '10'; // default
 
-        // データ取得範囲の決定
-        // カスタム期間や指定年の場合は、対象が含まれるように広く取る必要がある
-        // 安全のため 'all' を取得する方針とする (APIキャッシュが効くため2回目以降は速い)
         if (mode === 'relative') {
-            // クイック期間ボタンから値を取得
             const activeBtn = document.querySelector('.mf-quick-btn.active');
             yearsToFetch = activeBtn ? activeBtn.dataset.period : '10';
         } else {
@@ -410,14 +315,38 @@ export function showGraphModal(initialData = null) {
     // グラフ更新トリガー
     document.getElementById('mf-chart-stack-check').addEventListener('change', updateGraph);
 
-    // 増減モード：予測とは排他的
+    // 増減モード：予測・移動平均とは排他的
     const diffCheck = document.getElementById('mf-chart-diff-check');
     diffCheck.addEventListener('change', () => {
         if (diffCheck.checked) {
-            // 増減モードON時は予測をOFFに
             document.getElementById('mf-prediction-btn').classList.remove('active');
+            document.getElementById('mf-chart-ma-check').checked = false;
+            document.getElementById('mf-ma-period').disabled = true;
         }
         updateGraph();
+    });
+
+    // 移動平均トグル
+    const maCheck = document.getElementById('mf-chart-ma-check');
+    const maPeriodSelect = document.getElementById('mf-ma-period');
+    maCheck.addEventListener('change', () => {
+        maPeriodSelect.disabled = !maCheck.checked;
+        if (maCheck.checked) {
+            document.getElementById('mf-chart-diff-check').checked = false;
+        }
+        updateGraph();
+    });
+    maPeriodSelect.addEventListener('change', updateGraph);
+
+    // サマリーテーブルトグル
+    document.getElementById('mf-toggle-summary').addEventListener('click', () => {
+        const area = document.getElementById('mf-summary-area');
+        if (area.style.display === 'none') {
+            area.style.display = 'block';
+            renderSummaryTable();
+        } else {
+            area.style.display = 'none';
+        }
     });
 
     document.getElementById('mf-copy-data').addEventListener('click', copyGraphData);
@@ -425,7 +354,7 @@ export function showGraphModal(initialData = null) {
 
     document.getElementById('mf-download-csv').addEventListener('click', () => {
         if (!globalChart || !lastFetchedData) return;
-        const filteredRows = getFilteredRows(); // 現在の表示内容でCSV化
+        const filteredRows = getFilteredRows();
         if (!filteredRows || filteredRows.length === 0) { alert('データがありません'); return; }
         const csvRows = [...filteredRows].reverse();
         const finalCsv = generateCSV([lastFetchedData.headers, ...csvRows]);
@@ -439,13 +368,15 @@ export function showGraphModal(initialData = null) {
     }
 }
 
-// フィルタリングロジック (モダンUI対応)
+// ==========================================
+// フィルタリングロジック
+// ==========================================
 function getFilteredRows() {
     if (!lastFetchedData) return [];
 
     const mode = document.querySelector('input[name="mf-mode"]:checked').value;
 
-    // 1. まず全データを日付オブジェクト付きで用意
+    // 1. 全データを日付オブジェクト付きで用意
     let rows = lastFetchedData.rows.map(r => ({
         date: new Date(r[0]),
         raw: r
@@ -453,7 +384,6 @@ function getFilteredRows() {
 
     // 2. モードによる期間フィルタ
     if (mode === 'relative') {
-        // クイック期間ボタンから値を取得
         const activeBtn = document.querySelector('.mf-quick-btn.active');
         const rangeVal = activeBtn ? activeBtn.dataset.period : '10';
         if (rangeVal !== 'all') {
@@ -480,18 +410,13 @@ function getFilteredRows() {
         }
     }
 
-    // 3. 抽出フィルタ
-
-    // 抽出プリセットをチェック
-    const extractPreset = document.querySelector('input[name="mf-extract-preset"]:checked')?.value || 'none';
+    // 3. 抽出フィルタ (Simplified: day select only)
     const daySelectVal = document.getElementById('mf-select-day').value;
 
-    if (extractPreset === 'quarter') {
-        // 四半期末: 3月、6月、9月、12月の月末
-        const quarterMonths = [2, 5, 8, 11]; // 0-indexed
+    if (daySelectVal === 'last') {
+        // 月末: 各月の最終データを抽出
         const monthMap = new Map();
         rows.forEach(r => {
-            if (!quarterMonths.includes(r.date.getMonth())) return;
             const key = `${r.date.getFullYear()}-${r.date.getMonth()}`;
             const existing = monthMap.get(key);
             if (!existing || r.date > existing.date) {
@@ -499,99 +424,17 @@ function getFilteredRows() {
             }
         });
         rows = Array.from(monthMap.values());
-    } else if (extractPreset === 'half') {
-        // 半期末: 6月、12月の月末
-        const halfMonths = [5, 11]; // 0-indexed
-        const monthMap = new Map();
-        rows.forEach(r => {
-            if (!halfMonths.includes(r.date.getMonth())) return;
-            const key = `${r.date.getFullYear()}-${r.date.getMonth()}`;
-            const existing = monthMap.get(key);
-            if (!existing || r.date > existing.date) {
-                monthMap.set(key, r);
-            }
-        });
-        rows = Array.from(monthMap.values());
-    } else if (extractPreset === 'yearstart') {
-        // 年始: 各年の1月の最初のデータ
-        const monthMap = new Map();
-        rows.forEach(r => {
-            if (r.date.getMonth() !== 0) return; // 1月のみ
-            const key = `${r.date.getFullYear()}`;
-            const existing = monthMap.get(key);
-            if (!existing || r.date < existing.date) {
-                monthMap.set(key, r);
-            }
-        });
-        rows = Array.from(monthMap.values());
-    } else {
-        // カスタムモード（日付選択）
-        if (daySelectVal === 'last') {
-            // 月末: 各月の最終データを抽出
-            const monthMap = new Map();
-            rows.forEach(r => {
-                const key = `${r.date.getFullYear()}-${r.date.getMonth()}`;
-                const existing = monthMap.get(key);
-                if (!existing || r.date > existing.date) {
-                    monthMap.set(key, r);
-                }
-            });
-            rows = Array.from(monthMap.values());
-        } else if (daySelectVal !== '') {
-            // 特定日付
-            const targetDay = parseInt(daySelectVal, 10);
-            rows = rows.filter(r => r.date.getDate() === targetDay);
-        }
-        // 空の場合は全日表示
+    } else if (daySelectVal !== '') {
+        // 特定日付
+        const targetDay = parseInt(daySelectVal, 10);
+        rows = rows.filter(r => r.date.getDate() === targetDay);
     }
-
-    // (C) 特定月指定（詳細オプション）
-    if (document.getElementById('mf-check-month').checked) {
-        const targetMonth = parseInt(document.getElementById('mf-select-month').value, 10); // 1-12
-        rows = rows.filter(r => (r.date.getMonth() + 1) === targetMonth);
-    }
-
-    // (D) 間引き (Interval)
-    // 日付順に並んでいる前提で、Nヶ月ごとのデータを残す
-    if (document.getElementById('mf-check-interval').checked) {
-        const interval = parseInt(document.getElementById('mf-select-interval').value, 10);
-
-        // 年月でグルーピングしてソート
-        rows.sort((a, b) => a.date - b.date);
-
-        const filtered = [];
-        let lastMonthKey = null;
-        let monthsCount = 0;
-
-        // 基点となる最初のデータは残す？それとも単純に月差分？
-        // シンプルに「最初のデータからNヶ月経過したデータ」を拾う
-        if (rows.length > 0) {
-            const distinctMonths = [];
-            // まず月ごとに最も代表的なデータ（通常は月末寄り）を1つ選ぶ必要があるが、
-            // 既に(A)(B)で月1件になっている可能性が高い。
-            // なっていない場合（全日表示など）はどうする？ -> 単純にスキップする
-
-            // ここではシンプルに「リスト上のインデックス」ではなく「月数差」で判断する
-            let baseDate = rows[0].date;
-            filtered.push(rows[0]);
-
-            for (let i = 1; i < rows.length; i++) {
-                const d = rows[i].date;
-                // 月差分計算
-                const diffMonths = (d.getFullYear() - baseDate.getFullYear()) * 12 + (d.getMonth() - baseDate.getMonth());
-                if (diffMonths >= interval) {
-                    filtered.push(rows[i]);
-                    baseDate = d;
-                }
-            }
-            rows = filtered;
-        }
-    }
+    // 空の場合は全日表示
 
     // 4. ソートして配列に戻す
-    rows.sort((a, b) => a.date - b.date); // 古い順（グラフ描画用）
+    rows.sort((a, b) => a.date - b.date);
 
-    // 表示数更新など
+    // 表示数更新
     const statusMsg = document.getElementById('mf-status-msg');
     if (statusMsg) {
         statusMsg.textContent = `表示: ${rows.length}件`;
@@ -599,7 +442,10 @@ function getFilteredRows() {
 
     return rows.map(r => r.raw);
 }
-// このモジュールからエクスポートして使えるようにもする
+
+// ==========================================
+// グラフ更新
+// ==========================================
 export function updateGraph() {
     if (!lastFetchedData) return;
     document.getElementById('mf-no-data-msg').style.display = 'none';
@@ -617,11 +463,21 @@ export function updateGraph() {
     const isStacked = document.getElementById('mf-chart-stack-check').checked;
     const isDiff = document.getElementById('mf-chart-diff-check').checked;
     const isPrediction = document.getElementById('mf-prediction-btn')?.classList.contains('active') || false;
+    const isMA = document.getElementById('mf-chart-ma-check').checked;
+    const maPeriod = parseInt(document.getElementById('mf-ma-period').value, 10);
 
-    drawChartCanvas(labels, headers, rows, isStacked, isDiff, isPrediction);
+    drawChartCanvas(labels, headers, rows, isStacked, isDiff, isPrediction, isMA, maPeriod);
+
+    // サマリーテーブルが表示中なら更新
+    const summaryArea = document.getElementById('mf-summary-area');
+    if (summaryArea && summaryArea.style.display !== 'none') {
+        renderSummaryTable();
+    }
 }
 
+// ==========================================
 // ヘルパー
+// ==========================================
 function hexToRgbObj(hex) {
     const r = parseInt(hex.slice(1, 3), 16);
     const g = parseInt(hex.slice(3, 5), 16);
@@ -629,9 +485,39 @@ function hexToRgbObj(hex) {
     return { r, g, b };
 }
 
-function drawChartCanvas(labels, headers, rows, isStacked, isDiff, isPrediction = false) {
+// 移動平均を計算
+function calcMovingAverage(data, period) {
+    const result = [];
+    for (let i = 0; i < data.length; i++) {
+        if (i < period - 1) {
+            result.push(null);
+        } else {
+            let sum = 0;
+            let count = 0;
+            for (let j = i - period + 1; j <= i; j++) {
+                if (data[j] !== null && data[j] !== undefined) {
+                    sum += data[j];
+                    count++;
+                }
+            }
+            result.push(count > 0 ? Math.round(sum / count) : null);
+        }
+    }
+    return result;
+}
+
+// ==========================================
+// グラフ描画
+// ==========================================
+function drawChartCanvas(labels, headers, rows, isStacked, isDiff, isPrediction = false, isMA = false, maPeriod = 12) {
     if (globalChart) globalChart.destroy();
     const ctx = document.getElementById('mf-chart').getContext('2d');
+
+    // ダークモード判定
+    const dark = isDarkMode;
+    const textColor = dark ? '#a0a8b0' : '#636e72';
+    const gridColor = dark ? '#3a3f4b' : '#dfe6e9';
+    const haloColor = dark ? 'rgba(30, 32, 40, 0.9)' : 'rgba(255, 255, 255, 0.8)';
 
     const datasets = [];
     const themeColors = [
@@ -647,10 +533,8 @@ function drawChartCanvas(labels, headers, rows, isStacked, isDiff, isPrediction 
 
     if (isDiff) {
         // --- 増減モード (Bar Chart) ---
-        // 差分データと割合データの生成
         const diffData = [];
-        const percentData = []; // 割合データ
-        // [0]は前回がないので0 or null
+        const percentData = [];
         diffData.push(0);
         percentData.push(0);
 
@@ -658,30 +542,25 @@ function drawChartCanvas(labels, headers, rows, isStacked, isDiff, isPrediction 
             const currentTotal = parseInt(rows[i][1] || 0, 10);
             const prevTotal = parseInt(rows[i - 1][1] || 0, 10);
             diffData.push(currentTotal - prevTotal);
-            // 割合計算（前回が0の場合は0%）
             const percent = prevTotal !== 0 ? ((currentTotal - prevTotal) / prevTotal) * 100 : 0;
             percentData.push(percent);
         }
 
-        // ラベルはそのまま日付を使う
-
-        // 色設定 (プラス: 青/緑, マイナス: 赤)
         const backgroundColors = diffData.map(val => val >= 0 ? currentTheme.color2 : '#e74c3c');
         const borderColors = diffData.map(val => val >= 0 ? currentTheme.color1 : '#c0392b');
 
         datasets.push({
             label: '前回比増減',
             data: diffData,
-            percentData: percentData, // 割合データを格納
+            percentData: percentData,
             backgroundColor: backgroundColors,
             borderColor: borderColors,
             borderWidth: 1,
-            borderRadius: 4, // 角丸
+            borderRadius: 4,
         });
 
     } else if (isStacked) {
         // --- 積み上げモード (Area Chart) ---
-        // 以下既存ロジック
         const extraColors = ['#C2B280', '#8C705F', '#6A8D92', '#D4C5A3'];
         const palette = [...themeColors, ...extraColors];
 
@@ -694,14 +573,34 @@ function drawChartCanvas(labels, headers, rows, isStacked, isDiff, isPrediction 
             gradient.addColorStop(0, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.8)`);
             gradient.addColorStop(1, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.1)`);
 
+            const categoryData = rows.map(r => parseInt(r[i] || 0, 10));
+
             datasets.push({
                 label: headers[i],
-                data: rows.map(r => parseInt(r[i] || 0, 10)),
+                data: categoryData,
                 backgroundColor: gradient,
                 borderColor: baseColor,
                 borderWidth: 1,
                 fill: true,
                 pointRadius: rows.length > 50 ? 0 : 3
+            });
+        }
+
+        // 積み上げ + 移動平均
+        if (isMA) {
+            const totalData = rows.map(r => parseInt(r[1] || 0, 10));
+            const maData = calcMovingAverage(totalData, maPeriod);
+            datasets.push({
+                label: `${maPeriod}ヶ月移動平均 (合計)`,
+                data: maData,
+                backgroundColor: 'transparent',
+                borderColor: dark ? '#f5a623' : '#e17055',
+                borderWidth: 2.5,
+                borderDash: [6, 3],
+                fill: false,
+                pointRadius: 0,
+                pointHoverRadius: 4,
+                order: -1 // 最前面に描画
             });
         }
     } else {
@@ -724,7 +623,23 @@ function drawChartCanvas(labels, headers, rows, isStacked, isDiff, isPrediction 
             pointHoverRadius: 6
         });
 
-        // --- 予測モード ---
+        // --- 移動平均線 ---
+        if (isMA) {
+            const maData = calcMovingAverage(actualData, maPeriod);
+            datasets.push({
+                label: `${maPeriod}ヶ月移動平均`,
+                data: maData,
+                backgroundColor: 'transparent',
+                borderColor: dark ? '#f5a623' : '#e17055',
+                borderWidth: 2.5,
+                borderDash: [6, 3],
+                fill: false,
+                pointRadius: 0,
+                pointHoverRadius: 4
+            });
+        }
+
+        // --- 複数シナリオ予測 ---
         if (isPrediction && rows.length >= 2) {
             // CAGR計算（年平均成長率）
             const firstDate = new Date(rows[0][0]);
@@ -737,35 +652,48 @@ function drawChartCanvas(labels, headers, rows, isStacked, isDiff, isPrediction 
 
             // 5年分（60ヶ月）の予測データを生成
             const predictionMonths = 60;
-            const predictionData = new Array(actualData.length - 1).fill(null); // 実績部分はnull
-            predictionData.push(lastVal); // 最後の実績値から開始
 
+            // 3シナリオ用のCAGR
+            const scenarios = [
+                { name: '楽観', factor: 1.5, color: '#27ae60', dashStyle: [6, 3] },
+                { name: '中立', factor: 1.0, color: '#f5a623', dashStyle: [8, 4] },
+                { name: '悲観', factor: 0.5, color: '#e74c3c', dashStyle: [4, 4] }
+            ];
+
+            // 未来の日付ラベルを追加
             for (let m = 1; m <= predictionMonths; m++) {
                 const futureDate = new Date(lastDate);
                 futureDate.setMonth(futureDate.getMonth() + m);
                 const dateStr = futureDate.toISOString().split('T')[0];
                 allLabels.push(dateStr);
-
-                const monthlyGrowth = Math.pow(1 + cagr, m / 12);
-                predictionData.push(Math.round(lastVal * monthlyGrowth));
             }
 
-            // 予測データセット（点線）
-            const predictionRgb = hexToRgbObj('#f5a623');
-            const predictionGradient = ctx.createLinearGradient(0, 0, 0, 400);
-            predictionGradient.addColorStop(0, `rgba(${predictionRgb.r}, ${predictionRgb.g}, ${predictionRgb.b}, 0.2)`);
-            predictionGradient.addColorStop(1, `rgba(${predictionRgb.r}, ${predictionRgb.g}, ${predictionRgb.b}, 0.0)`);
+            scenarios.forEach(scenario => {
+                const scenarioCagr = cagr * scenario.factor;
+                const predictionData = new Array(actualData.length - 1).fill(null);
+                predictionData.push(lastVal); // 最後の実績値から開始
 
-            datasets.push({
-                label: `予測 (CAGR ${(cagr * 100).toFixed(1)}%)`,
-                data: predictionData,
-                backgroundColor: predictionGradient,
-                borderColor: '#f5a623',
-                borderWidth: 2,
-                borderDash: [8, 4], // 点線
-                fill: true,
-                pointRadius: 0,
-                pointHoverRadius: 4
+                for (let m = 1; m <= predictionMonths; m++) {
+                    const monthlyGrowth = Math.pow(1 + scenarioCagr, m / 12);
+                    predictionData.push(Math.round(lastVal * monthlyGrowth));
+                }
+
+                const predictionRgb = hexToRgbObj(scenario.color);
+                const predictionGradient = ctx.createLinearGradient(0, 0, 0, 400);
+                predictionGradient.addColorStop(0, `rgba(${predictionRgb.r}, ${predictionRgb.g}, ${predictionRgb.b}, 0.1)`);
+                predictionGradient.addColorStop(1, `rgba(${predictionRgb.r}, ${predictionRgb.g}, ${predictionRgb.b}, 0.0)`);
+
+                datasets.push({
+                    label: `${scenario.name} (CAGR ${(scenarioCagr * 100).toFixed(1)}%)`,
+                    data: predictionData,
+                    backgroundColor: predictionGradient,
+                    borderColor: scenario.color,
+                    borderWidth: 2,
+                    borderDash: scenario.dashStyle,
+                    fill: true,
+                    pointRadius: 0,
+                    pointHoverRadius: 4
+                });
             });
         }
     }
@@ -775,11 +703,8 @@ function drawChartCanvas(labels, headers, rows, isStacked, isDiff, isPrediction 
         id: 'dataLabelPlugin',
         afterDatasetsDraw: (chart) => {
             const { ctx, data } = chart;
-            // 増減モード時はラベルを減らして見やすく
             const MAX_LABELS = isDiff ? 12 : 20;
             const totalPoints = data.labels.length;
-
-            // 動的に間引き間隔を計算（常に最大MAX_LABELS個のラベルを表示）
             const skipInterval = totalPoints <= MAX_LABELS ? 1 : Math.ceil(totalPoints / MAX_LABELS);
 
             ctx.save();
@@ -791,8 +716,10 @@ function drawChartCanvas(labels, headers, rows, isStacked, isDiff, isPrediction 
                 const meta = chart.getDatasetMeta(i);
                 if (meta.hidden) return;
 
+                // 移動平均線にはラベルを表示しない
+                if (dataset.label && dataset.label.includes('移動平均')) return;
+
                 meta.data.forEach((element, index) => {
-                    // 間引き条件：skipInterval毎、または最後のポイント
                     const isLastPoint = index === meta.data.length - 1;
                     const isFirstPoint = index === 0;
                     if (skipInterval > 1 && !isFirstPoint && !isLastPoint && index % skipInterval !== 0) return;
@@ -801,19 +728,17 @@ function drawChartCanvas(labels, headers, rows, isStacked, isDiff, isPrediction 
                     if (value === null || value === undefined) return;
 
                     // 予測データセットの最初のポイント（実績との重複点）はスキップ
-                    if (dataset.label && dataset.label.includes('予測') && isFirstPoint) return;
+                    if (dataset.label && (dataset.label.includes('楽観') || dataset.label.includes('中立') || dataset.label.includes('悲観')) && isFirstPoint) return;
 
-                    // 増減モードで0の場合は表示しない（邪魔だから）
+                    // 増減モードで0の場合は表示しない
                     if (isDiff && value === 0) return;
 
                     let text = '';
-                    // 単位処理
                     const absVal = Math.abs(value);
                     if (absVal >= 100000000) text = (value / 100000000).toFixed(1) + '億';
                     else if (absVal >= 10000) text = (value / 10000).toFixed(0) + '万';
                     else text = value.toLocaleString();
 
-                    // 増減モードなら + を付ける & 割合を追加
                     if (isDiff && value > 0) text = '+' + text;
                     if (isDiff && dataset.percentData && dataset.percentData[index] !== undefined) {
                         const pct = dataset.percentData[index];
@@ -822,19 +747,13 @@ function drawChartCanvas(labels, headers, rows, isStacked, isDiff, isPrediction 
                     }
 
                     const { x, y } = element.tooltipPosition();
-                    const color = dataset.borderColor instanceof Array ? dataset.borderColor[index] : dataset.borderColor || '#636e72';
+                    const color = dataset.borderColor instanceof Array ? dataset.borderColor[index] : dataset.borderColor || textColor;
 
-                    // 位置調整
-                    // すべてのラベルをバーの上端に配置（マイナスも0ライン付近に）
-                    // element.y はバーの上端（プラスの場合）または下端（マイナスの場合）
-                    // element.base は0ラインの位置
                     let labelY;
                     if (isDiff) {
                         if (value >= 0) {
-                            // プラス値: バーの上に表示
                             labelY = element.y - 14;
                         } else {
-                            // マイナス値: 0ライン（base）の少し上に表示
                             labelY = element.base - 14;
                         }
                     } else {
@@ -845,7 +764,7 @@ function drawChartCanvas(labels, headers, rows, isStacked, isDiff, isPrediction 
                     ctx.save();
                     ctx.lineJoin = 'round';
                     ctx.lineWidth = 4;
-                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+                    ctx.strokeStyle = haloColor;
                     ctx.strokeText(text, x, labelY);
                     ctx.restore();
 
@@ -866,7 +785,25 @@ function drawChartCanvas(labels, headers, rows, isStacked, isDiff, isPrediction 
             responsive: true,
             maintainAspectRatio: false,
             interaction: { mode: 'index', intersect: false },
-            stacked: isStacked, // Bar Chartでも累積したい？いや増減の場合は累積しないほうがいいか。今回はTotalのみなのでfalse
+            stacked: isStacked,
+            animation: {
+                duration: 1200,
+                easing: 'easeInOutQuart',
+                delay: (context) => {
+                    // データポイントのインデックスに応じた遅延
+                    if (context.type === 'data' && context.mode === 'default') {
+                        return context.dataIndex * 8;
+                    }
+                    return 0;
+                }
+            },
+            transitions: {
+                active: {
+                    animation: {
+                        duration: 200
+                    }
+                }
+            },
             layout: {
                 padding: { top: 20, bottom: isDiff ? 20 : 0, right: 40 }
             },
@@ -875,33 +812,34 @@ function drawChartCanvas(labels, headers, rows, isStacked, isDiff, isPrediction 
                     display: true,
                     text: (() => {
                         if (isDiff) {
-                            // 期間合計の計算 (最後 - 最初)
-                            // rowsはソート済み
                             const firstVal = parseInt(rows[0][1] || 0, 10);
                             const lastVal = parseInt(rows[rows.length - 1][1] || 0, 10);
                             const totalDiff = lastVal - firstVal;
-
-                            // 期間全体の割合計算（最初の値に対する増減率）
                             const totalPercent = firstVal !== 0 ? ((lastVal - firstVal) / firstVal) * 100 : 0;
                             const percentSign = totalPercent >= 0 ? '+' : '';
                             const percentText = `${percentSign}${totalPercent.toFixed(1)}%`;
-
                             const formattedTotal = new Intl.NumberFormat('ja-JP', { style: 'currency', currency: 'JPY' }).format(totalDiff);
                             const sign = totalDiff > 0 ? '+' : '';
                             const totalText = `期間合計: ${sign}${formattedTotal} (${percentText})`.replace('￥', '¥');
-
                             return ['資産増減（前回比）', totalText];
                         }
-                        if (isPrediction) return '資産推移（5年予測）';
+                        if (isPrediction) return '資産推移（3シナリオ予測）';
+                        if (isMA) return `資産推移（${maPeriod}ヶ月移動平均）`;
                         return isStacked ? '資産推移（内訳）' : '資産推移（合計）';
                     })(),
-                    font: { size: 16 },
+                    font: { size: 16, weight: 'bold' },
                     color: currentTheme.color1
                 },
                 tooltip: {
-                    backgroundColor: currentTheme.color1,
-                    titleColor: currentTheme.color4,
+                    backgroundColor: dark ? '#2e3038' : currentTheme.color1,
+                    titleColor: dark ? '#e0e0e0' : currentTheme.color4,
                     bodyColor: '#fff',
+                    borderColor: dark ? '#3a3f4b' : 'transparent',
+                    borderWidth: dark ? 1 : 0,
+                    padding: 12,
+                    cornerRadius: 8,
+                    titleFont: { size: 13, weight: 'bold' },
+                    bodyFont: { size: 12 },
                     callbacks: {
                         label: function (context) {
                             let label = context.dataset.label || '';
@@ -909,11 +847,9 @@ function drawChartCanvas(labels, headers, rows, isStacked, isDiff, isPrediction 
                             if (context.parsed.y !== null) {
                                 const val = context.parsed.y;
                                 const formatted = new Intl.NumberFormat('ja-JP', { style: 'currency', currency: 'JPY' }).format(val);
-                                // プラス記号付与 & 割合追加
                                 if (isDiff && val > 0) label += '+' + formatted.replace('￥', '');
                                 else label += formatted;
 
-                                // 増減モード時に割合を追加
                                 if (isDiff && context.dataset.percentData) {
                                     const pct = context.dataset.percentData[context.dataIndex];
                                     if (pct !== undefined) {
@@ -926,15 +862,29 @@ function drawChartCanvas(labels, headers, rows, isStacked, isDiff, isPrediction 
                         }
                     }
                 },
-                legend: { position: 'bottom', display: !isDiff, labels: { color: '#636e72' } } // 増減は凡例不要（1つだけだから）
+                legend: {
+                    position: 'bottom',
+                    display: !isDiff,
+                    labels: {
+                        color: textColor,
+                        usePointStyle: true,
+                        pointStyle: 'circle',
+                        padding: 16,
+                        font: { size: 11 }
+                    }
+                }
             },
             scales: {
-                x: { grid: { display: false }, ticks: { color: '#636e72' } },
+                x: {
+                    grid: { display: false },
+                    ticks: { color: textColor, font: { size: 11 } }
+                },
                 y: {
-                    stacked: isStacked && !isDiff, // 増減モードはスタックしない
-                    grid: { color: '#dfe6e9' },
+                    stacked: isStacked && !isDiff,
+                    grid: { color: gridColor },
                     ticks: {
-                        color: '#636e72',
+                        color: textColor,
+                        font: { size: 11 },
                         callback: function (value) {
                             const absVal = Math.abs(value);
                             let text = '';
@@ -951,29 +901,201 @@ function drawChartCanvas(labels, headers, rows, isStacked, isDiff, isPrediction 
         }
     });
 
-    // 増減モードと積み上げは排他的にする (UI連動)
+    // 増減モードと積み上げは排他的にする
     if (isDiff) {
         document.getElementById('mf-chart-stack-check').disabled = true;
+        document.getElementById('mf-chart-ma-check').disabled = true;
     } else {
         document.getElementById('mf-chart-stack-check').disabled = false;
+        document.getElementById('mf-chart-ma-check').disabled = false;
     }
 }
 
+// ==========================================
+// サマリーテーブル
+// ==========================================
+function renderSummaryTable() {
+    const area = document.getElementById('mf-summary-area');
+    if (!area || !lastFetchedData) return;
+
+    const rows = getFilteredRows();
+    if (rows.length === 0) {
+        area.innerHTML = '<div style="padding:12px; text-align:center; color:var(--mf-text-sub); font-size:12px;">データがありません</div>';
+        return;
+    }
+
+    // 月次データを生成
+    const monthlyData = generateMonthlyData(rows);
+    const yearlyData = generateYearlyData(rows);
+
+    const isYearly = area.dataset.mode === 'yearly';
+
+    area.innerHTML = `
+        <div class="mf-summary-container">
+            <div class="mf-summary-tabs">
+                <button class="mf-summary-tab ${!isYearly ? 'active' : ''}" data-mode="monthly">月次</button>
+                <button class="mf-summary-tab ${isYearly ? 'active' : ''}" data-mode="yearly">年次</button>
+            </div>
+            <div id="mf-summary-table-body" style="max-height: 250px; overflow-y: auto;">
+                ${isYearly ? buildYearlyTable(yearlyData) : buildMonthlyTable(monthlyData)}
+            </div>
+        </div>
+    `;
+
+    // タブ切替イベント
+    area.querySelectorAll('.mf-summary-tab').forEach(tab => {
+        tab.addEventListener('click', (e) => {
+            area.dataset.mode = e.target.dataset.mode;
+            renderSummaryTable();
+        });
+    });
+}
+
+function generateMonthlyData(rows) {
+    // 各月の最終データを取得
+    const monthMap = new Map();
+    rows.forEach(r => {
+        const date = new Date(r[0]);
+        const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        const existing = monthMap.get(key);
+        if (!existing || new Date(r[0]) > new Date(existing.raw[0])) {
+            monthMap.set(key, { key, total: parseInt(r[1] || 0, 10), raw: r });
+        }
+    });
+
+    const sorted = Array.from(monthMap.values()).sort((a, b) => b.key.localeCompare(a.key));
+    const result = [];
+
+    for (let i = 0; i < sorted.length; i++) {
+        const current = sorted[i];
+        const prev = sorted[i + 1]; // 前の月（時系列的には1つ前）
+        const diff = prev ? current.total - prev.total : 0;
+        const pct = prev && prev.total !== 0 ? ((current.total - prev.total) / prev.total) * 100 : 0;
+        result.push({
+            label: current.key,
+            total: current.total,
+            diff: diff,
+            pct: pct,
+            hasPrev: !!prev
+        });
+    }
+
+    return result;
+}
+
+function generateYearlyData(rows) {
+    // 各年の最終データを取得
+    const yearMap = new Map();
+    rows.forEach(r => {
+        const date = new Date(r[0]);
+        const year = date.getFullYear();
+        const existing = yearMap.get(year);
+        if (!existing || new Date(r[0]) > new Date(existing.raw[0])) {
+            yearMap.set(year, { year, total: parseInt(r[1] || 0, 10), raw: r });
+        }
+    });
+
+    // 各年の最初のデータも取得（年間増減用）
+    const yearStartMap = new Map();
+    rows.forEach(r => {
+        const date = new Date(r[0]);
+        const year = date.getFullYear();
+        const existing = yearStartMap.get(year);
+        if (!existing || new Date(r[0]) < new Date(existing[0])) {
+            yearStartMap.set(year, r);
+        }
+    });
+
+    const sorted = Array.from(yearMap.values()).sort((a, b) => b.year - a.year);
+    const result = [];
+
+    for (let i = 0; i < sorted.length; i++) {
+        const current = sorted[i];
+        const prev = sorted[i + 1];
+        const diff = prev ? current.total - prev.total : 0;
+        const pct = prev && prev.total !== 0 ? ((current.total - prev.total) / prev.total) * 100 : 0;
+        result.push({
+            label: String(current.year),
+            total: current.total,
+            diff: diff,
+            pct: pct,
+            hasPrev: !!prev
+        });
+    }
+
+    return result;
+}
+
+function formatCurrency(val) {
+    return new Intl.NumberFormat('ja-JP').format(val);
+}
+
+function buildMonthlyTable(data) {
+    if (data.length === 0) return '<div style="padding:12px; text-align:center; color:var(--mf-text-sub);">データなし</div>';
+    return `
+        <table class="mf-summary-table">
+            <thead><tr>
+                <th>月</th><th>資産合計</th><th>増減額</th><th>増減率</th>
+            </tr></thead>
+            <tbody>
+                ${data.map(d => `
+                    <tr>
+                        <td>${d.label}</td>
+                        <td>¥${formatCurrency(d.total)}</td>
+                        <td class="${d.diff >= 0 ? 'mf-positive' : 'mf-negative'}">
+                            ${d.hasPrev ? (d.diff >= 0 ? '+' : '') + '¥' + formatCurrency(d.diff) : '—'}
+                        </td>
+                        <td class="${d.pct >= 0 ? 'mf-positive' : 'mf-negative'}">
+                            ${d.hasPrev ? (d.pct >= 0 ? '+' : '') + d.pct.toFixed(1) + '%' : '—'}
+                        </td>
+                    </tr>
+                `).join('')}
+            </tbody>
+        </table>
+    `;
+}
+
+function buildYearlyTable(data) {
+    if (data.length === 0) return '<div style="padding:12px; text-align:center; color:var(--mf-text-sub);">データなし</div>';
+    return `
+        <table class="mf-summary-table">
+            <thead><tr>
+                <th>年</th><th>資産合計</th><th>年間増減</th><th>増減率</th>
+            </tr></thead>
+            <tbody>
+                ${data.map(d => `
+                    <tr>
+                        <td>${d.label}年</td>
+                        <td>¥${formatCurrency(d.total)}</td>
+                        <td class="${d.diff >= 0 ? 'mf-positive' : 'mf-negative'}">
+                            ${d.hasPrev ? (d.diff >= 0 ? '+' : '') + '¥' + formatCurrency(d.diff) : '—'}
+                        </td>
+                        <td class="${d.pct >= 0 ? 'mf-positive' : 'mf-negative'}">
+                            ${d.hasPrev ? (d.pct >= 0 ? '+' : '') + d.pct.toFixed(1) + '%' : '—'}
+                        </td>
+                    </tr>
+                `).join('')}
+            </tbody>
+        </table>
+    `;
+}
+
+// ==========================================
+// コピー / 画像
+// ==========================================
 function copyGraphImage() {
     const canvas = document.getElementById('mf-chart');
     if (!canvas) return;
 
-    // 白背景付きの画像を作成
     const tempCanvas = document.createElement('canvas');
     tempCanvas.width = canvas.width;
     tempCanvas.height = canvas.height;
     const tempCtx = tempCanvas.getContext('2d');
 
-    // 白背景を描画
-    tempCtx.fillStyle = '#ffffff';
+    // 背景色（ダークモード対応）
+    tempCtx.fillStyle = isDarkMode ? '#1e2028' : '#ffffff';
     tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
 
-    // 元のグラフを重ねる
     tempCtx.drawImage(canvas, 0, 0);
 
     tempCanvas.toBlob(blob => {

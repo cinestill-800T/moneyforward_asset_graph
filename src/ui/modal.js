@@ -1,4 +1,4 @@
-import { COLOR_PRESETS, currentTheme, saveTheme } from '../core/config.js';
+import { COLOR_PRESETS, currentTheme, saveTheme, isDarkMode, saveDarkMode } from '../core/config.js';
 import { getCacheSize, clearCache } from '../api/cache.js';
 
 // --- 設定モーダル ---
@@ -35,7 +35,7 @@ export function showSettingsModal(onThemeChanged) {
             <div class="mf-modal-body">
                 <div style="margin-bottom:20px;">
                     <label class="mf-label">テーマカラー</label>
-                    <div style="font-size:11px; margin-bottom:8px; color:#636e72;">お好みのカラーテーマを選択してください</div>
+                    <div style="font-size:11px; margin-bottom:8px; color:var(--mf-text-sub);">お好みのカラーテーマを選択してください</div>
                     <select id="mf-preset-select" class="mf-select" style="height:44px; line-height:44px; font-size:14px;">
                         ${presetOptions}
                     </select>
@@ -47,10 +47,23 @@ export function showSettingsModal(onThemeChanged) {
                     </div>
                 </div>
 
-                <div style="margin-top:20px; padding-top:20px; border-top:2px solid #f3f4f6;">
+                <div style="margin-bottom:20px; padding-top:20px; border-top:2px solid var(--mf-border);">
+                    <label class="mf-label">ダークモード</label>
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <div style="font-size:11px; color:var(--mf-text-sub);">
+                            グラフ画面を暗い配色で表示します
+                        </div>
+                        <label class="mf-toggle-switch">
+                            <input type="checkbox" id="mf-dark-mode-toggle" ${isDarkMode ? 'checked' : ''}>
+                            <span class="mf-toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <div style="padding-top:20px; border-top:2px solid var(--mf-border);">
                     <label class="mf-label">データキャッシュ</label>
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-                        <div style="font-size:11px; color:#636e72;">
+                        <div style="font-size:11px; color:var(--mf-text-sub);">
                             過去のデータをブラウザに保存し、<br>次回の読み込みを高速化します。
                         </div>
                         <div style="text-align:right; font-size:12px; font-weight:bold;">
@@ -68,7 +81,7 @@ export function showSettingsModal(onThemeChanged) {
                 </div>
             </div>
             <div class="mf-modal-footer">
-                <button class="mf-modal-btn mf-btn-primary" id="mf-settings-save">保存して適用</button>
+                <button class="mf-modal-btn mf-modal-btn-primary" id="mf-settings-save">保存して適用</button>
             </div>
         </div>
     `;
@@ -107,6 +120,11 @@ export function showSettingsModal(onThemeChanged) {
                 <div style="flex:1; background:${selectedTheme.color4};"></div>
             `;
         }
+    });
+
+    // ダークモードトグル (即時反映)
+    document.getElementById('mf-dark-mode-toggle').addEventListener('change', (e) => {
+        saveDarkMode(e.target.checked);
     });
 
     // キャッシュ削除
