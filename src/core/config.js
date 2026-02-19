@@ -1,4 +1,4 @@
-export const EXTENSION_VERSION = '2.7.0';
+export const EXTENSION_VERSION = '2.8.0';
 
 // カラープリセット定義
 export const COLOR_PRESETS = [
@@ -34,6 +34,9 @@ export const DEFAULT_THEME = {
 // 現在のテーマ設定 (メモリ上)
 export let currentTheme = { ...DEFAULT_THEME };
 
+// ダークモード状態
+export let isDarkMode = false;
+
 // --- テーマ管理 ---
 export function loadTheme() {
     const saved = localStorage.getItem('mf_ext_theme');
@@ -60,4 +63,25 @@ export function applyTheme(theme) {
     r.style.setProperty('--mf-color-2', theme.color2);
     r.style.setProperty('--mf-color-3', theme.color3);
     r.style.setProperty('--mf-color-4', theme.color4);
+}
+
+// --- ダークモード管理 ---
+export function loadDarkMode() {
+    const saved = localStorage.getItem('mf_ext_dark_mode');
+    isDarkMode = saved === 'true';
+    applyDarkMode(isDarkMode);
+}
+
+export function saveDarkMode(enabled) {
+    isDarkMode = enabled;
+    localStorage.setItem('mf_ext_dark_mode', String(enabled));
+    applyDarkMode(enabled);
+}
+
+export function applyDarkMode(enabled) {
+    if (enabled) {
+        document.documentElement.classList.add('mf-dark');
+    } else {
+        document.documentElement.classList.remove('mf-dark');
+    }
 }
