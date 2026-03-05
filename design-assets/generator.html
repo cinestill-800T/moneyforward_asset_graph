@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Asset Generator</title>
+  <link rel="stylesheet" href="../style.css">
+  <style>
+    /* Reset and Base Styles */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: #f0f2f5;
+      font-family: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif;
+      padding: 50px;
+    }
+
+    /* Common typography */
+    h1,
+    h2,
+    h3,
+    h4,
+    h5,
+    h6 {
+      color: var(--mf-text-main, #313647);
+    }
+
+    /* Container for each asset */
+    .asset-container {
+      position: relative;
+      margin-bottom: 50px;
+      overflow: hidden;
+      background: white;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    }
+
+    /* --- 1. Store Icon (128x128) --- */
+    #icon-128 {
+      width: 128px;
+      height: 128px;
+      border-radius: 28px;
+      background: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.05), 0 8px 24px rgba(128, 161, 186, 0.2);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .icon-128-bg {
+      position: absolute;
+      top: -20px;
+      right: -20px;
+      width: 80px;
+      height: 80px;
+      background: radial-gradient(circle, rgba(145, 196, 195, 0.15) 0%, transparent 70%);
+      border-radius: 50%;
+    }
+
+    .icon-chart {
+      width: 76px;
+      height: 60px;
+      display: flex;
+      align-items: flex-end;
+      gap: 10px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .icon-bar {
+      flex: 1;
+      border-radius: 6px 6px 0 0;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .icon-bar::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 30%;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.4) 0%, transparent 100%);
+    }
+
+    .icon-bar-1 {
+      height: 40%;
+      background: linear-gradient(135deg, #e0e7ec 0%, #c4d3df 100%);
+    }
+
+    .icon-bar-2 {
+      height: 70%;
+      background: linear-gradient(135deg, #91C4C3 0%, #70a1a0 100%);
+    }
+
+    .icon-bar-3 {
+      height: 100%;
+      background: linear-gradient(135deg, #80A1BA 0%, #5d7e96 100%);
+    }
+
+    /* --- 2. Promo Tile Small (440x280) --- */
+    #promo-440 {
+      width: 440px;
+      height: 280px;
+      background: linear-gradient(135deg, #1e2028 0%, #2e3038 100%);
+      color: white;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 40px;
+    }
+
+    .promo-bg-shapes {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      overflow: hidden;
+      z-index: 0;
+    }
+
+    .shape-1 {
+      position: absolute;
+      top: -50px;
+      right: -50px;
+      width: 200px;
+      height: 200px;
+      background: rgba(145, 196, 195, 0.1);
+      border-radius: 50%;
+      filter: blur(20px);
+    }
+
+    .shape-2 {
+      position: absolute;
+      bottom: -30px;
+      left: -30px;
+      width: 150px;
+      height: 150px;
+      background: rgba(128, 161, 186, 0.15);
+      border-radius: 50%;
+      filter: blur(15px);
+    }
+
+    .promo-content {
+      position: relative;
+      z-index: 1;
+    }
+
+    .promo-title {
+      font-size: 28px;
+      font-weight: 800;
+      background: linear-gradient(90deg, #B4DEBD, #91C4C3);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 12px;
+      letter-spacing: 0.5px;
+    }
+
+    .promo-subtitle {
+      font-size: 15px;
+      color: #a0a8b0;
+      line-height: 1.5;
+      font-weight: 500;
+    }
+
+    .promo-chart-mini {
+      position: absolute;
+      right: 30px;
+      bottom: 40px;
+      width: 120px;
+      height: 80px;
+      display: flex;
+      align-items: flex-end;
+      gap: 12px;
+    }
+
+    .promo-chart-mini .bar {
+      border-radius: 6px 6px 0 0;
+      background: linear-gradient(180deg, var(--mf-color-2) 0%, rgba(145, 196, 195, 0.2) 100%);
+    }
+
+    /* --- 3. Marquee Tile (1400x560) --- */
+    #marquee-1400 {
+      width: 1400px;
+      height: 560px;
+      background: #121318;
+      color: white;
+      position: relative;
+      display: flex;
+      align-items: center;
+      padding: 0 100px;
+      overflow: hidden;
+    }
+
+    .mq-bg-grid {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-image:
+        linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+      background-size: 40px 40px;
+      z-index: 0;
+    }
+
+    .mq-glow {
+      position: absolute;
+      right: 15%;
+      top: 30%;
+      width: 600px;
+      height: 600px;
+      background: radial-gradient(circle, rgba(145, 196, 195, 0.15) 0%, transparent 70%);
+      transform: translate(50%, -50%);
+      z-index: 0;
+    }
+
+    .mq-content {
+      width: 50%;
+      position: relative;
+      z-index: 2;
+    }
+
+    .mq-title {
+      font-size: 64px;
+      font-weight: 800;
+      line-height: 1.2;
+      margin-bottom: 24px;
+      letter-spacing: -1px;
+    }
+
+    .mq-title span {
+      background: linear-gradient(90deg, #80A1BA, #B4DEBD);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .mq-subtitle {
+      font-size: 26px;
+      color: #a0a8b0;
+      line-height: 1.6;
+      font-weight: 400;
+      margin-bottom: 40px;
+    }
+
+    .mq-features {
+      display: flex;
+      gap: 20px;
+    }
+
+    .mq-feature {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 16px 24px;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 600;
+      color: #e0e0e0;
+      backdrop-filter: blur(10px);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .mq-visual {
+      position: absolute;
+      right: 80px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 600px;
+      height: 400px;
+      z-index: 2;
+      perspective: 1000px;
+    }
+
+    .mock-panel {
+      width: 100%;
+      height: 100%;
+      background: #1e2028;
+      border-radius: 20px;
+      border: 1px solid #3a3f4b;
+      box-shadow: 0 30px 60px rgba(0, 0, 0, 0.5), 0 0 40px rgba(145, 196, 195, 0.1);
+      transform: rotateY(-10deg) rotateX(5deg);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .mock-header {
+      padding: 20px;
+      background: linear-gradient(135deg, var(--mf-color-1) 0%, var(--mf-color-2) 100%);
+      color: white;
+      font-size: 20px;
+      font-weight: bold;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .mock-body {
+      flex: 1;
+      padding: 30px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .mock-chart {
+      height: 180px;
+      border-bottom: 1px solid #3a3f4b;
+      position: relative;
+      display: flex;
+      align-items: flex-end;
+      gap: 15px;
+      padding-bottom: 20px;
+    }
+
+    .mock-chart .bar {
+      flex: 1;
+      border-radius: 4px 4px 0 0;
+      background: linear-gradient(180deg, var(--mf-color-2) 0%, rgba(145, 196, 195, 0.1) 100%);
+      border: 1px solid rgba(145, 196, 195, 0.3);
+      border-bottom: none;
+    }
+
+    .mock-table {
+      flex: 1;
+      background: #262830;
+      border-radius: 12px;
+      padding: 15px;
+    }
+
+    .mock-line {
+      height: 12px;
+      background: #3a3f4b;
+      border-radius: 6px;
+      margin-bottom: 15px;
+    }
+
+    .mock-line.short {
+      width: 40%;
+    }
+
+    .mock-line.mid {
+      width: 70%;
+    }
+
+    /* --- 4. Screenshot (1280x800) --- */
+    #screenshot-1280 {
+      width: 1280px;
+      height: 800px;
+      background: #f8f9fa;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+    }
+
+    .ss-bg {
+      position: absolute;
+      top: -20%;
+      right: -10%;
+      width: 800px;
+      height: 800px;
+      background: radial-gradient(circle, rgba(145, 196, 195, 0.1) 0%, transparent 60%);
+      border-radius: 50%;
+      z-index: 0;
+    }
+
+    .ss-left {
+      width: 45%;
+      padding: 100px 80px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      z-index: 1;
+    }
+
+    .ss-badge {
+      display: inline-block;
+      background: rgba(145, 196, 195, 0.15);
+      color: #70a1a0;
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-weight: bold;
+      font-size: 14px;
+      margin-bottom: 20px;
+      align-self: flex-start;
+    }
+
+    .ss-title {
+      font-size: 52px;
+      font-weight: 800;
+      color: #313647;
+      line-height: 1.2;
+      margin-bottom: 24px;
+    }
+
+    .ss-subtitle {
+      font-size: 22px;
+      color: #636e72;
+      line-height: 1.6;
+      margin-bottom: 40px;
+    }
+
+    .ss-right {
+      width: 55%;
+      position: relative;
+      z-index: 1;
+    }
+
+    .ss-browser {
+      position: absolute;
+      left: 0;
+      top: 120px;
+      width: 900px;
+      height: 600px;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.1);
+      border: 1px solid #dfe6e9;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .ss-browser-header {
+      height: 40px;
+      background: #f1f3f4;
+      border-bottom: 1px solid #dfe6e9;
+      display: flex;
+      align-items: center;
+      padding: 0 15px;
+      gap: 8px;
+    }
+
+    .ss-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+    }
+
+    .ss-dot.red {
+      background: #ff5f56;
+    }
+
+    .ss-dot.yel {
+      background: #ffbd2e;
+    }
+
+    .ss-dot.grn {
+      background: #27c93f;
+    }
+
+    .ss-url {
+      background: white;
+      height: 24px;
+      border-radius: 12px;
+      margin-left: 15px;
+      width: 400px;
+      border: 1px solid #dfe6e9;
+    }
+
+    .ss-browser-body {
+      flex: 1;
+      background: #fafafa;
+      position: relative;
+      padding: 40px;
+    }
+
+    /* Mocking the extension panel inside the browser */
+    .ss-ext-panel {
+      position: absolute;
+      bottom: 24px;
+      right: 24px;
+      width: 380px;
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+      border: 1px solid #dfe6e9;
+      overflow: hidden;
+    }
+
+    .ss-ext-header {
+      background: linear-gradient(135deg, var(--mf-color-1) 0%, var(--mf-color-2) 100%);
+      padding: 16px 20px;
+      color: white;
+      font-weight: bold;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .ss-ext-body {
+      padding: 24px;
+    }
+
+    .ss-ext-section {
+      background: white;
+      border: 1px solid #dfe6e9;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+
+    .ss-ext-btn {
+      background: linear-gradient(135deg, var(--mf-color-1) 0%, var(--mf-color-2) 100%);
+      color: white;
+      height: 48px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      margin-top: 15px;
+    }
+
+    /* Dummy page content */
+    .ss-page-content {
+      width: 100%;
+      height: 100%;
+      background: white;
+      border-radius: 8px;
+      border: 1px solid #dfe6e9;
+      padding: 30px;
+    }
+
+    .ss-page-title {
+      width: 300px;
+      height: 24px;
+      background: #e0e0e0;
+      border-radius: 4px;
+      margin-bottom: 30px;
+    }
+
+    .ss-page-table {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+
+    .ss-page-row {
+      height: 40px;
+      background: #f8f9fa;
+      border-radius: 4px;
+      border: 1px solid #eee;
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- 1. Store Icon -->
+  <div class="asset-container" id="icon-128">
+    <div class="icon-128-bg"></div>
+    <div class="icon-chart">
+      <div class="icon-bar icon-bar-1"></div>
+      <div class="icon-bar icon-bar-2"></div>
+      <div class="icon-bar icon-bar-3"></div>
+    </div>
+  </div>
+
+  <!-- 2. Promo Tile Small -->
+  <div class="asset-container" id="promo-440">
+    <div class="promo-bg-shapes">
+      <div class="shape-1"></div>
+      <div class="shape-2"></div>
+    </div>
+    <div class="promo-content">
+      <div class="promo-title">Asset Graph</div>
+      <div class="promo-subtitle">
+        MoneyForward MEの<br>
+        資産推移を美しく可視化。
+      </div>
+    </div>
+    <div class="promo-chart-mini">
+      <div class="bar" style="height: 40%"></div>
+      <div class="bar" style="height: 60%"></div>
+      <div class="bar" style="height: 80%"></div>
+      <div class="bar" style="height: 100%; background: #B4DEBD"></div>
+    </div>
+  </div>
+
+  <!-- 3. Marquee Tile -->
+  <div class="asset-container" id="marquee-1400">
+    <div class="mq-bg-grid"></div>
+    <div class="mq-glow"></div>
+
+    <div class="mq-content">
+      <div class="mq-title">
+        資産の推移を、<br>
+        <span>もっと美しく、もっと直感的に。</span>
+      </div>
+      <div class="mq-subtitle">
+        ブラウザ拡張機能で、MoneyForward MEのページ上に直接、高機能なインタラクティブグラフを描画。日々の資産変動を手軽に分析しましょう。
+      </div>
+
+      <div class="mq-features">
+        <div class="mq-feature">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#B4DEBD" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+          </svg>
+          推移グラフ表示
+        </div>
+        <div class="mq-feature">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#91C4C3" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <polyline points="7 10 12 15 17 10" />
+            <line x1="12" y1="15" x2="12" y2="3" />
+          </svg>
+          CSVエクスポート
+        </div>
+        <div class="mq-feature">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#80A1BA" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+          </svg>
+          ダークモード
+        </div>
+      </div>
+    </div>
+
+    <div class="mq-visual">
+      <div class="mock-panel">
+        <div class="mock-header">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 3v18h18" />
+            <path d="m19 9-5 5-4-4-3 3" />
+          </svg>
+          Asset Graph
+        </div>
+        <div class="mock-body">
+          <div class="mock-chart">
+            <div class="bar" style="height: 30%"></div>
+            <div class="bar" style="height: 45%"></div>
+            <div class="bar" style="height: 60%"></div>
+            <div class="bar" style="height: 55%"></div>
+            <div class="bar" style="height: 75%"></div>
+            <div class="bar" style="height: 85%"></div>
+            <div class="bar"
+              style="height: 100%; border-color:var(--mf-color-3); background: linear-gradient(180deg, var(--mf-color-3) 0%, rgba(180,222,189,0.1) 100%);">
+            </div>
+          </div>
+          <div class="mock-table">
+            <div class="mock-line mid"></div>
+            <div class="mock-line short"></div>
+            <div class="mock-line mid"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. Screenshot -->
+  <div class="asset-container" id="screenshot-1280">
+    <div class="ss-bg"></div>
+
+    <div class="ss-left">
+      <div class="ss-badge">Chrome Extension</div>
+      <div class="ss-title">マネーフォワードMEに<br>美しいグラフを追加</div>
+      <div class="ss-subtitle">資産推移ページを開くだけで、直感的なグラフが自動で描画されます。日々の変動を一目で把握。</div>
+    </div>
+
+    <div class="ss-right">
+      <div class="ss-browser">
+        <div class="ss-browser-header">
+          <div class="ss-dot red"></div>
+          <div class="ss-dot yel"></div>
+          <div class="ss-dot grn"></div>
+          <div class="ss-url"></div>
+        </div>
+        <div class="ss-browser-body">
+          <div class="ss-page-content">
+            <div class="ss-page-title"></div>
+            <div class="ss-page-table">
+              <div class="ss-page-row"></div>
+              <div class="ss-page-row"></div>
+              <div class="ss-page-row"></div>
+              <div class="ss-page-row"></div>
+            </div>
+          </div>
+
+          <div class="ss-ext-panel">
+            <div class="ss-ext-header">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M3 3v18h18" />
+                <path d="m19 9-5 5-4-4-3 3" />
+              </svg>
+              Asset Graph 設定
+            </div>
+            <div class="ss-ext-body">
+              <div class="ss-ext-section">
+                <div style="height: 12px; width: 80px; background: #dfe6e9; border-radius: 4px; margin-bottom: 12px;">
+                </div>
+                <div style="height: 40px; background: #f8f9fa; border: 1px solid #dfe6e9; border-radius: 8px;"></div>
+                <div class="ss-ext-btn">グラフを描画する</div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+</body>
+
+</html>
