@@ -801,3 +801,56 @@
   border-top: 4px solid currentColor;
   opacity: 1;
 }
+
+/* --- 日次モード（月ボタングループ） --- */
+.mf-daily-trigger {
+  border-radius: 6px !important;
+  margin-right: 6px;
+  border: 1px solid var(--mf-border) !important;
+}
+
+.mf-daily-trigger.active {
+  background: linear-gradient(135deg, var(--mf-color-1, #80A1BA) 0%, var(--mf-color-2, #91C4C3) 100%) !important;
+  color: #fff !important;
+  border-color: var(--mf-color-1, #80A1BA) !important;
+  font-weight: 600 !important;
+}
+
+.mf-daily-month-btn {
+  padding: 5px 10px;
+  border: 1px solid var(--mf-border);
+  background: var(--mf-control-bg);
+  color: var(--mf-text-sub);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.mf-daily-month-btn:first-child {
+  border-radius: 6px 0 0 6px;
+}
+
+.mf-daily-month-btn:last-child {
+  border-radius: 0 6px 6px 0;
+}
+
+.mf-daily-month-btn:not(:last-child) {
+  border-right: none;
+}
+
+.mf-daily-month-btn:hover:not(:disabled) {
+  background: var(--mf-bg-hover);
+}
+
+.mf-daily-month-btn.active {
+  background: linear-gradient(135deg, var(--mf-color-1, #80A1BA) 0%, var(--mf-color-2, #91C4C3) 100%);
+  color: #fff;
+  border-color: var(--mf-color-1, #80A1BA);
+  font-weight: 600;
+}
+
+.mf-daily-month-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}

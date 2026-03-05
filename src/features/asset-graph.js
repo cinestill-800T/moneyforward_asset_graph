@@ -1,8 +1,14 @@
 import { currentTheme, isDarkMode } from '../core/config.js';
-import { fetchData, generateCSV, downloadCSV, formatDate } from '../api/client.js';
+import { fetchData, fetchMonthlyData, generateCSV, downloadCSV, formatDate } from '../api/client.js';
 
 let globalChart = null;
 let lastFetchedData = null; // グラフモーダル内でのデータ保持
+
+// 日次モード用の状態
+let isDailyMode = false;
+let dailyModeYear = new Date().getFullYear();
+let dailyModeMonth = new Date().getMonth() + 1; // 1-indexed
+let dailyModeData = null;
 
 // ==========================================
 // グラフモーダル & 内部ロジック
@@ -38,14 +44,25 @@ export function showGraphModal(initialData = null) {
                 <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 10px;">
                     <div style="font-weight: bold; color: var(--mf-text-main); min-width: 40px;">期間:</div>
                     
+                    <!-- Daily Mode Button -->
+                    <button type="button" id="mf-daily-btn" class="mf-quick-btn mf-daily-trigger" title="月ごとの日別データを表示">日次</button>
+                    
                     <!-- Quick Period Button Group -->
-                    <div class="mf-quick-period-group">
+                    <div class="mf-quick-period-group" id="mf-period-group">
                         <button type="button" class="mf-quick-btn" data-period="1">1年</button>
                         <button type="button" class="mf-quick-btn" data-period="3">3年</button>
                         <button type="button" class="mf-quick-btn" data-period="5">5年</button>
                         <button type="button" class="mf-quick-btn active" data-period="10">10年</button>
                         <button type="button" class="mf-quick-btn" data-period="all">全期間</button>
                         <button type="button" id="mf-prediction-btn" class="mf-quick-btn" data-period="predict" title="過去データから未来を予測">未来予測</button>
+                    </div>
+                    
+                    <!-- Daily Mode Month Selector (hidden by default) -->
+                    <div id="mf-daily-nav" style="display: none; align-items: center; gap: 8px;">
+                        <select id="mf-daily-year" class="mf-select-modern" style="min-width: 80px; height: 30px; font-size: 12px; padding: 4px 8px;"></select>
+                        <div class="mf-quick-period-group" id="mf-daily-month-group">
+                            ${Array.from({ length: 12 }, (_, i) => `<button type="button" class="mf-daily-month-btn" data-month="${i + 1}">${i + 1}月</button>`).join('')}
+                        </div>
                     </div>
                     
                     <!-- Advanced Period Toggle -->
@@ -79,7 +96,7 @@ export function showGraphModal(initialData = null) {
                 </div>
                 
                 <!-- Row 2: Extraction (Simplified - day select only) -->
-                <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                <div id="mf-extraction-row" style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
                     <div style="font-weight: bold; color: var(--mf-text-main); min-width: 40px;">抽出:</div>
                     
                     <div class="mf-filter-group-modern">
@@ -214,16 +231,16 @@ export function showGraphModal(initialData = null) {
 
             // relative選択時はクイックボタンを有効化
             if (val === 'relative') {
-                document.querySelectorAll('.mf-quick-btn').forEach(btn => btn.disabled = false);
+                document.querySelectorAll('.mf-quick-btn:not(#mf-daily-btn)').forEach(btn => btn.disabled = false);
             } else {
-                document.querySelectorAll('.mf-quick-btn').forEach(btn => btn.disabled = true);
+                document.querySelectorAll('.mf-quick-btn:not(#mf-daily-btn)').forEach(btn => btn.disabled = true);
             }
             updateGraph();
         });
     });
 
-    // クイック期間ボタン（予測ボタンを除外）
-    const quickPeriodBtns = document.querySelectorAll('.mf-quick-btn:not(#mf-prediction-btn)');
+    // クイック期間ボタン（予測ボタン・日次ボタンを除外）
+    const quickPeriodBtns = document.querySelectorAll('.mf-quick-btn:not(#mf-prediction-btn):not(#mf-daily-btn)');
     const predictionBtn = document.getElementById('mf-prediction-btn');
 
     quickPeriodBtns.forEach(btn => {
@@ -254,6 +271,124 @@ export function showGraphModal(initialData = null) {
         }
 
         updateGraph();
+    });
+
+    // ==========================================
+    // 日次モード
+    // ==========================================
+    const dailyBtn = document.getElementById('mf-daily-btn');
+    const dailyNav = document.getElementById('mf-daily-nav');
+    const periodGroup = document.getElementById('mf-period-group');
+    const extractionRow = document.getElementById('mf-extraction-row');
+    const dailyYearSelect = document.getElementById('mf-daily-year');
+    const dailyMonthBtns = document.querySelectorAll('.mf-daily-month-btn');
+
+    // 年セレクト生成
+    const curYear = new Date().getFullYear();
+    for (let y = curYear; y >= 2000; y--) {
+        const opt = document.createElement('option');
+        opt.value = y;
+        opt.textContent = `${y}年`;
+        dailyYearSelect.appendChild(opt);
+    }
+    dailyYearSelect.value = dailyModeYear;
+
+    function updateDailyButtons() {
+        const now = new Date();
+        const nowYear = now.getFullYear();
+        const nowMonth = now.getMonth() + 1;
+
+        dailyMonthBtns.forEach(btn => {
+            const m = parseInt(btn.dataset.month, 10);
+            btn.classList.toggle('active', m === dailyModeMonth);
+            // 未来の月は無効化
+            btn.disabled = (dailyModeYear === nowYear && m > nowMonth) || (dailyModeYear > nowYear);
+        });
+    }
+
+    async function loadDailyData() {
+        const loading = document.getElementById('mf-modal-loading');
+        const progress = document.getElementById('mf-modal-progress');
+        loading.style.display = 'flex';
+        progress.style.width = '50%';
+        statusMsg.textContent = '';
+
+        try {
+            const data = await fetchMonthlyData(dailyModeYear, dailyModeMonth);
+            if (data && data.rows.length > 0) {
+                dailyModeData = data;
+                updateGraph();
+            } else {
+                statusMsg.textContent = 'この月のデータがありません';
+                dailyModeData = null;
+                document.getElementById('mf-no-data-msg').style.display = 'block';
+            }
+        } catch (e) {
+            console.error(e);
+            statusMsg.textContent = 'エラーが発生しました';
+        } finally {
+            loading.style.display = 'none';
+        }
+    }
+
+    function enterDailyMode() {
+        isDailyMode = true;
+        dailyBtn.classList.add('active');
+        periodGroup.style.display = 'none';
+        dailyNav.style.display = 'flex';
+        predictionBtn.classList.remove('active');
+        if (extractionRow) extractionRow.style.display = 'none';
+        advPeriodToggle.style.display = 'none';
+        advPeriodPanel.style.display = 'none';
+        updateDailyButtons();
+        loadDailyData();
+    }
+
+    function exitDailyMode() {
+        isDailyMode = false;
+        dailyModeData = null;
+        dailyBtn.classList.remove('active');
+        periodGroup.style.display = 'flex';
+        dailyNav.style.display = 'none';
+        if (extractionRow) extractionRow.style.display = 'flex';
+        advPeriodToggle.style.display = 'flex';
+        updateGraph();
+    }
+
+    dailyBtn.addEventListener('click', () => {
+        if (isDailyMode) {
+            exitDailyMode();
+        } else {
+            enterDailyMode();
+        }
+    });
+
+    // 月ボタンクリック
+    dailyMonthBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            dailyModeMonth = parseInt(btn.dataset.month, 10);
+            updateDailyButtons();
+            loadDailyData();
+        });
+    });
+
+    // 年セレクト変更
+    dailyYearSelect.addEventListener('change', () => {
+        dailyModeYear = parseInt(dailyYearSelect.value, 10);
+        // 年が変わったら未来月チェック
+        const now = new Date();
+        if (dailyModeYear === now.getFullYear() && dailyModeMonth > now.getMonth() + 1) {
+            dailyModeMonth = now.getMonth() + 1;
+        }
+        updateDailyButtons();
+        loadDailyData();
+    });
+
+    // クイック期間ボタンクリック時は日次モードを解除
+    quickPeriodBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            if (isDailyMode) exitDailyMode();
+        });
     });
 
     // 詳細期間パネルトグル
@@ -353,11 +488,12 @@ export function showGraphModal(initialData = null) {
     document.getElementById('mf-copy-image').addEventListener('click', copyGraphImage);
 
     document.getElementById('mf-download-csv').addEventListener('click', () => {
-        if (!globalChart || !lastFetchedData) return;
+        const currentData = isDailyMode ? dailyModeData : lastFetchedData;
+        if (!globalChart || !currentData) return;
         const filteredRows = getFilteredRows();
         if (!filteredRows || filteredRows.length === 0) { alert('データがありません'); return; }
         const csvRows = [...filteredRows].reverse();
-        const finalCsv = generateCSV([lastFetchedData.headers, ...csvRows]);
+        const finalCsv = generateCSV([currentData.headers, ...csvRows]);
         downloadCSV(finalCsv, `moneyforward_graph_data_${formatDate(new Date())}.csv`);
     });
 
@@ -372,6 +508,18 @@ export function showGraphModal(initialData = null) {
 // フィルタリングロジック
 // ==========================================
 function getFilteredRows() {
+    // 日次モードの場合
+    if (isDailyMode && dailyModeData) {
+        const rows = dailyModeData.rows.map(r => ({
+            date: new Date(r[0]),
+            raw: r
+        })).filter(item => !isNaN(item.date.getTime()));
+        rows.sort((a, b) => a.date - b.date);
+        const statusMsg = document.getElementById('mf-status-msg');
+        if (statusMsg) statusMsg.textContent = `${dailyModeYear}年${dailyModeMonth}月 日次: ${rows.length}件`;
+        return rows.map(r => r.raw);
+    }
+
     if (!lastFetchedData) return [];
 
     const mode = document.querySelector('input[name="mf-mode"]:checked').value;
@@ -447,7 +595,8 @@ function getFilteredRows() {
 // グラフ更新
 // ==========================================
 export function updateGraph() {
-    if (!lastFetchedData) return;
+    if (!isDailyMode && !lastFetchedData) return;
+    if (isDailyMode && !dailyModeData) return;
     document.getElementById('mf-no-data-msg').style.display = 'none';
 
     const rows = getFilteredRows();
@@ -458,8 +607,13 @@ export function updateGraph() {
         return;
     }
 
-    const headers = lastFetchedData.headers;
-    const labels = rows.map(r => r[0]);
+    const headers = isDailyMode ? dailyModeData.headers : lastFetchedData.headers;
+    const labels = isDailyMode
+        ? rows.map(r => {
+            const d = new Date(r[0]);
+            return `${d.getMonth() + 1}/${d.getDate()}`;
+        })
+        : rows.map(r => r[0]);
     const isStacked = document.getElementById('mf-chart-stack-check').checked;
     const isDiff = document.getElementById('mf-chart-diff-check').checked;
     const isPrediction = document.getElementById('mf-prediction-btn')?.classList.contains('active') || false;
@@ -825,6 +979,7 @@ function drawChartCanvas(labels, headers, rows, isStacked, isDiff, isPrediction 
                         }
                         if (isPrediction) return '資産推移（3シナリオ予測）';
                         if (isMA) return `資産推移（${maPeriod}ヶ月移動平均）`;
+                        if (isDailyMode) return `資産推移 ─ ${dailyModeYear}年${dailyModeMonth}月（日次）`;
                         return isStacked ? '資産推移（内訳）' : '資産推移（合計）';
                     })(),
                     font: { size: 16, weight: 'bold' },
@@ -876,8 +1031,14 @@ function drawChartCanvas(labels, headers, rows, isStacked, isDiff, isPrediction 
             },
             scales: {
                 x: {
-                    grid: { display: false },
-                    ticks: { color: textColor, font: { size: 11 } }
+                    grid: { display: isDailyMode },
+                    ticks: {
+                        color: textColor,
+                        font: { size: isDailyMode ? 10 : 11 },
+                        maxRotation: isDailyMode ? 0 : undefined,
+                        autoSkip: true,
+                        maxTicksLimit: isDailyMode ? 31 : undefined
+                    }
                 },
                 y: {
                     stacked: isStacked && !isDiff,

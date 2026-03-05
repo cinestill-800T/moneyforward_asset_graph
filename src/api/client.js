@@ -100,6 +100,66 @@ export async function fetchData(years, onProgress) {
     }
 }
 
+// ==========================================
+// 特定月のデータ取得（日次モード用）
+// ==========================================
+export async function fetchMonthlyData(year, month) {
+    // 対象月の月末日を計算
+    const lastDay = new Date(year, month, 0); // monthは1-indexed
+    const dateStr = formatDate(lastDay);
+    const cacheKey = `mf_daily_${year}_${month}`;
+
+    // キャッシュチェック（当月以外はキャッシュ可能）
+    const now = new Date();
+    const isCurrentMonth = year === now.getFullYear() && month === (now.getMonth() + 1);
+
+    if (!isCurrentMonth) {
+        const cached = localStorage.getItem(cacheKey);
+        if (cached) {
+            try {
+                return JSON.parse(cached);
+            } catch (e) { /* ignore */ }
+        }
+    }
+
+    try {
+        const url = `https://moneyforward.com/bs/history/list/${dateStr}/monthly/csv`;
+        const res = await fetch(url);
+        if (!res.ok) return null;
+        const blob = await res.blob();
+        const text = await readBlobAsText(blob, 'Shift_JIS');
+        const rows = parseCSV(text);
+
+        if (rows.length <= 1) return null;
+
+        const headers = rows[0];
+        let dataRows = rows.slice(1);
+
+        // 対象月のデータだけにフィルタリング
+        dataRows = dataRows.filter(r => {
+            const d = new Date(r[0]);
+            return d.getFullYear() === year && (d.getMonth() + 1) === month;
+        });
+
+        // 日付順ソート（古い順）
+        dataRows.sort((a, b) => new Date(a[0]) - new Date(b[0]));
+
+        const result = { headers, rows: dataRows };
+
+        // 当月以外はキャッシュ保存
+        if (!isCurrentMonth) {
+            try {
+                localStorage.setItem(cacheKey, JSON.stringify(result));
+            } catch (e) { console.warn('Cache storage failed', e); }
+        }
+
+        return result;
+    } catch (e) {
+        console.error('fetchMonthlyData error:', e);
+        return null;
+    }
+}
+
 // --- ヘルパー関数 ---
 
 export function formatDate(date) {
