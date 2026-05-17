@@ -10,3 +10,5 @@ icon*_base64.txt
 
 design-assets/node_modules/
 design-assets/out/
+debug/
+release/
