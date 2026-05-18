@@ -16,7 +16,7 @@ async function generateIcons() {
                 kernel: sharp.kernel.lanczos3,
             })
             .toFile(outputPath);
-        console.log(`✓ Saved icon${size}.png`);
+        console.log(`Saved icon${size}.png`);
     }
     console.log('All icons resized successfully!');
 }

@@ -55,7 +55,7 @@ async function generateAssets() {
                 .resize(asset.width, asset.height, { kernel: sharp.kernel.lanczos3 })
                 .toFile(outputPath);
 
-            console.log(`✓ Saved ${asset.filename} (${asset.width}x${asset.height})`);
+            console.log(`Saved ${asset.filename} (${asset.width}x${asset.height})`);
 
             if (asset.isIcon) {
                 const iconDir = path.join(__dirname, '..', 'src', 'assets');

@@ -29,7 +29,7 @@ export function showSettingsModal(onThemeChanged) {
     modal.innerHTML = `
         <div class="mf-modal-content mf-settings-content" style="max-width:360px; height:auto;">
             <div class="mf-modal-header">
-                <div class="mf-modal-title">⚙️ 設定</div>
+                <div class="mf-modal-title">設定</div>
                 <button class="mf-modal-btn mf-modal-btn-close" id="mf-settings-close">×</button>
             </div>
             <div class="mf-modal-body">

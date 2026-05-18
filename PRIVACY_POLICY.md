@@ -11,10 +11,10 @@ MoneyForward Asset Graph is a browser extension that enhances the MoneyForward M
 **We do not collect any personal data.**
 
 This extension:
-- ✅ Processes all data locally in your browser
-- ✅ Does not send any data to external servers
-- ✅ Does not track user behavior or analytics
-- ✅ Does not use cookies for tracking purposes
+- Processes all data locally in your browser.
+- Does not send any data to external servers.
+- Does not track user behavior or analytics.
+- Does not use cookies for tracking purposes.
 
 ## Data Storage
 
