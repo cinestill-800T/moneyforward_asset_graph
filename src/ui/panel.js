@@ -10,19 +10,19 @@ export function createPanel() {
     panel.id = 'mf-extension-panel';
 
     const iconSvg = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M3 21H21" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
-    <path d="M6 17L11 12L15 16L21 8" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-    <path d="M6 17V13" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
-    <path d="M11 12V17" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
-    <path d="M15 16V17" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
-    <path d="M21 8V17" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
+    <path d="M3 21H21" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+    <path d="M6 17L11 12L15 16L21 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M6 17V13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+    <path d="M11 12V17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+    <path d="M15 16V17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+    <path d="M21 8V17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
   </svg>`;
 
     panel.innerHTML = `
     <div id="mf-extension-header">
       <div class="mf-title">
         <span class="mf-icon-wrapper">${iconSvg}</span>
-        <span>Asset Graph <span style="font-size:10px; opacity:0.8; margin-left:5px;">v${EXTENSION_VERSION}</span></span>
+        <span>Asset Graph <span class="mf-version">v${EXTENSION_VERSION}</span></span>
       </div>
       <div class="mf-header-actions">
           <div class="mf-header-btn" id="mf-btn-settings" title="設定">
@@ -41,10 +41,14 @@ export function createPanel() {
     
     <div id="mf-extension-body">
       <div class="mf-section">
-        <p style="font-size: 12px; color: #636e72; margin: 0 0 12px 0; line-height: 1.5;">
-          資産推移をグラフで可視化し、<br>CSVでエクスポートできます。
-        </p>
-        <button id="btn-show-graph" class="mf-btn mf-btn-primary" style="height: 52px; font-size: 15px;">
+        <div class="mf-panel-kicker">Portfolio cockpit</div>
+        <p class="mf-panel-copy">資産推移の確認、CSV保存、画像コピーまでをひとつのビューで扱えます。</p>
+        <div class="mf-panel-stat-row" aria-hidden="true">
+          <span>Trend</span>
+          <span>Daily</span>
+          <span>Export</span>
+        </div>
+        <button id="btn-show-graph" class="mf-btn mf-btn-primary mf-main-action">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                 <path d="M3 3v18h18" />
                 <path d="M18 17l-6-10-6 10" />
@@ -54,9 +58,9 @@ export function createPanel() {
         </button>
       </div>
 
-      <div style="margin-top: 16px; text-align: center;">
+      <div class="mf-support-wrap">
         <a href="https://www.buymeacoffee.com/cinestill_800t" target="_blank" class="mf-btn-donate" title="開発者を支援する">
-           <img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 40px !important; width: 145px !important;" >
+           <span>開発者を支援</span>
         </a>
       </div>
     </div>

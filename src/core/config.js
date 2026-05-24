@@ -2,26 +2,26 @@ export const EXTENSION_VERSION = '2.8.0';
 
 // カラープリセット定義
 export const COLOR_PRESETS = [
-    { name: "爽やかブルー (標準)", colors: ['#80A1BA', '#91C4C3', '#B4DEBD', '#FFF7DD'] },
-    { name: "シックダーク", colors: ['#313647', '#435663', '#A3B087', '#FFF8D4'] },
-    { name: "フォレストグリーン", colors: ['#2C5F2D', '#97BC62', '#D4E09B', '#F1F7ED'] },
-    { name: "サンセットオレンジ", colors: ['#FF6F61', '#FF9A8B', '#FFC3A0', '#F6E4C6'] },
-    { name: "ラベンダー・ドリーム", colors: ['#6A5ACD', '#9370DB', '#E6E6FA', '#F8F8FF'] },
-    { name: "桜色 (チェリーブロッサム)", colors: ['#FFB7B2', '#FFDAC1', '#E2F0CB', '#FFFFD8'] },
-    { name: "オーシャンブリーズ", colors: ['#006994', '#00A8E8', '#74D0F1', '#E0FFFF'] },
-    { name: "ミッドナイト・パープル", colors: ['#301934', '#5D3F6A', '#8B6F9A', '#DCD0FF'] },
-    { name: "アースブラウン", colors: ['#5D4037', '#8D6E63', '#D7CCC8', '#EFEBE9'] },
-    { name: "クールグレー", colors: ['#37474F', '#607D8B', '#CFD8DC', '#ECEFF1'] },
-    { name: "ウォームベージュ", colors: ['#8D6E63', '#A1887F', '#D7CCC8', '#F5F5F5'] },
-    { name: "ミントフレッシュ", colors: ['#009688', '#4DB6AC', '#B2DFDB', '#E0F2F1'] },
-    { name: "ベリー・スムージー", colors: ['#880E4F', '#C2185B', '#F48FB1', '#FCE4EC'] },
-    { name: "ソーラーフレア", colors: ['#E65100', '#FF9800', '#FFCC80', '#FFF3E0'] },
-    { name: "ノルディック・ウィンター", colors: ['#455A64', '#78909C', '#B0BEC5', '#FFFFFF'] },
-    { name: "ロイヤルゴールド", colors: ['#B8860B', '#DAA520', '#EEE8AA', '#FFFFF0'] },
-    { name: "ティール＆コーラル", colors: ['#008080', '#FF7F50', '#FFA07A', '#E0FFFF'] },
-    { name: "モノクローム", colors: ['#212121', '#757575', '#BDBDBD', '#F5F5F5'] },
-    { name: "ネオンサイバー", colors: ['#3F51B5', '#FF4081', '#00E676', '#121212'] },
-    { name: "レトロポップ", colors: ['#D32F2F', '#FBC02D', '#388E3C', '#FFF9C4'] }
+    { name: "Aurum Graphite", colors: ['hsl(198 92% 64%)', 'hsl(156 72% 52%)', 'hsl(44 96% 62%)', 'hsl(220 24% 92%)'] },
+    { name: "Signal Cyan", colors: ['hsl(207 96% 66%)', 'hsl(178 78% 54%)', 'hsl(255 86% 74%)', 'hsl(218 28% 93%)'] },
+    { name: "Obsidian Mint", colors: ['hsl(162 73% 48%)', 'hsl(207 82% 62%)', 'hsl(48 91% 58%)', 'hsl(154 22% 91%)'] },
+    { name: "Slate Rose", colors: ['hsl(343 84% 66%)', 'hsl(28 92% 66%)', 'hsl(210 84% 70%)', 'hsl(24 30% 92%)'] },
+    { name: "Kinetic Violet", colors: ['hsl(262 88% 72%)', 'hsl(198 90% 62%)', 'hsl(142 72% 56%)', 'hsl(238 32% 93%)'] },
+    { name: "Sakura Pulse", colors: ['hsl(349 92% 74%)', 'hsl(24 90% 72%)', 'hsl(152 54% 72%)', 'hsl(40 70% 92%)'] },
+    { name: "Deep Market", colors: ['hsl(200 82% 48%)', 'hsl(187 86% 56%)', 'hsl(222 76% 70%)', 'hsl(190 46% 92%)'] },
+    { name: "Nocturne Plum", colors: ['hsl(282 62% 54%)', 'hsl(318 76% 64%)', 'hsl(205 82% 66%)', 'hsl(280 30% 91%)'] },
+    { name: "Urban Clay", colors: ['hsl(18 46% 50%)', 'hsl(36 66% 58%)', 'hsl(166 48% 56%)', 'hsl(30 32% 90%)'] },
+    { name: "Nord Glass", colors: ['hsl(203 45% 56%)', 'hsl(188 42% 64%)', 'hsl(224 30% 72%)', 'hsl(210 28% 93%)'] },
+    { name: "Warm Ledger", colors: ['hsl(33 52% 55%)', 'hsl(13 78% 63%)', 'hsl(194 70% 62%)', 'hsl(36 34% 91%)'] },
+    { name: "Mint Delta", colors: ['hsl(174 80% 42%)', 'hsl(151 67% 55%)', 'hsl(209 76% 66%)', 'hsl(158 42% 91%)'] },
+    { name: "Berry Index", colors: ['hsl(329 76% 53%)', 'hsl(280 70% 66%)', 'hsl(38 92% 62%)', 'hsl(324 40% 92%)'] },
+    { name: "Solar Signal", colors: ['hsl(29 94% 56%)', 'hsl(47 96% 58%)', 'hsl(186 76% 58%)', 'hsl(42 54% 91%)'] },
+    { name: "Frost Terminal", colors: ['hsl(205 35% 50%)', 'hsl(185 38% 62%)', 'hsl(224 44% 74%)', 'hsl(206 36% 92%)'] },
+    { name: "Royal Yield", colors: ['hsl(43 82% 54%)', 'hsl(31 84% 62%)', 'hsl(198 72% 64%)', 'hsl(48 48% 91%)'] },
+    { name: "Coral Teal", colors: ['hsl(181 72% 42%)', 'hsl(12 92% 66%)', 'hsl(43 90% 66%)', 'hsl(185 48% 92%)'] },
+    { name: "Mono Alloy", colors: ['hsl(214 18% 62%)', 'hsl(220 12% 48%)', 'hsl(160 10% 70%)', 'hsl(220 18% 92%)'] },
+    { name: "Cyber Yield", colors: ['hsl(233 88% 68%)', 'hsl(326 92% 64%)', 'hsl(152 96% 52%)', 'hsl(220 18% 10%)'] },
+    { name: "Retro Quant", colors: ['hsl(356 78% 58%)', 'hsl(48 94% 60%)', 'hsl(150 60% 46%)', 'hsl(42 66% 91%)'] }
 ];
 
 export const DEFAULT_THEME = {
@@ -35,7 +35,7 @@ export const DEFAULT_THEME = {
 export let currentTheme = { ...DEFAULT_THEME };
 
 // ダークモード状態
-export let isDarkMode = false;
+export let isDarkMode = true;
 
 // --- テーマ管理 ---
 export function loadTheme() {
@@ -68,7 +68,7 @@ export function applyTheme(theme) {
 // --- ダークモード管理 ---
 export function loadDarkMode() {
     const saved = localStorage.getItem('mf_ext_dark_mode');
-    isDarkMode = saved === 'true';
+    isDarkMode = saved === null ? true : saved === 'true';
     applyDarkMode(isDarkMode);
 }
 
@@ -81,7 +81,9 @@ export function saveDarkMode(enabled) {
 export function applyDarkMode(enabled) {
     if (enabled) {
         document.documentElement.classList.add('mf-dark');
+        document.documentElement.classList.remove('mf-light');
     } else {
         document.documentElement.classList.remove('mf-dark');
+        document.documentElement.classList.add('mf-light');
     }
 }

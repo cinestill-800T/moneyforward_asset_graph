@@ -2,7 +2,7 @@ import { COLOR_PRESETS, currentTheme, saveTheme, isDarkMode, saveDarkMode } from
 import { getCacheSize, clearCache } from '../api/cache.js';
 
 // --- 設定モーダル ---
-export function showSettingsModal(onThemeChanged) {
+export async function showSettingsModal(onThemeChanged) {
     const existing = document.getElementById('mf-settings-modal');
     if (existing) existing.remove();
 
@@ -16,7 +16,7 @@ export function showSettingsModal(onThemeChanged) {
     ).join('');
 
     // キャッシュ情報の取得
-    const cacheInfo = getCacheSize();
+    const cacheInfo = await getCacheSize();
 
     // 現在のテーマに一致するプリセットを探す
     const currentPresetIndex = COLOR_PRESETS.findIndex(preset =>
@@ -27,19 +27,19 @@ export function showSettingsModal(onThemeChanged) {
     );
 
     modal.innerHTML = `
-        <div class="mf-modal-content mf-settings-content" style="max-width:360px; height:auto;">
+        <div class="mf-modal-content mf-settings-content">
             <div class="mf-modal-header">
                 <div class="mf-modal-title">設定</div>
-                <button class="mf-modal-btn mf-modal-btn-close" id="mf-settings-close">×</button>
+                <button class="mf-modal-btn mf-modal-btn-close mf-icon-button" id="mf-settings-close" aria-label="設定を閉じる">×</button>
             </div>
             <div class="mf-modal-body">
-                <div style="margin-bottom:20px;">
+                <div class="mf-settings-section">
                     <label class="mf-label">テーマカラー</label>
-                    <div style="font-size:11px; margin-bottom:8px; color:var(--mf-text-sub);">お好みのカラーテーマを選択してください</div>
-                    <select id="mf-preset-select" class="mf-select" style="height:44px; line-height:44px; font-size:14px;">
+                    <div class="mf-help-text">お好みのカラーテーマを選択してください</div>
+                    <select id="mf-preset-select" class="mf-select">
                         ${presetOptions}
                     </select>
-                    <div id="mf-theme-preview" style="margin-top:10px; display:flex; gap:4px; border-radius:4px; overflow:hidden; height:24px;">
+                    <div id="mf-theme-preview" class="mf-theme-preview">
                         <div style="flex:1; background:${currentTheme.color1};"></div>
                         <div style="flex:1; background:${currentTheme.color2};"></div>
                         <div style="flex:1; background:${currentTheme.color3};"></div>
@@ -47,10 +47,10 @@ export function showSettingsModal(onThemeChanged) {
                     </div>
                 </div>
 
-                <div style="margin-bottom:20px; padding-top:20px; border-top:2px solid var(--mf-border);">
+                <div class="mf-settings-section">
                     <label class="mf-label">ダークモード</label>
-                    <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <div style="font-size:11px; color:var(--mf-text-sub);">
+                    <div class="mf-settings-row">
+                        <div class="mf-help-text">
                             グラフ画面を暗い配色で表示します
                         </div>
                         <label class="mf-toggle-switch">
@@ -60,18 +60,18 @@ export function showSettingsModal(onThemeChanged) {
                     </div>
                 </div>
 
-                <div style="padding-top:20px; border-top:2px solid var(--mf-border);">
+                <div class="mf-settings-section">
                     <label class="mf-label">データキャッシュ</label>
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-                        <div style="font-size:11px; color:var(--mf-text-sub);">
+                    <div class="mf-settings-row mf-cache-row">
+                        <div class="mf-help-text">
                             過去のデータをブラウザに保存し、<br>次回の読み込みを高速化します。
                         </div>
-                        <div style="text-align:right; font-size:12px; font-weight:bold;">
+                        <div class="mf-cache-meta">
                             <span id="mf-cache-count">${cacheInfo.count}</span>ファイル<br>
                             <span id="mf-cache-size">${cacheInfo.size}</span> KB
                         </div>
                     </div>
-                    <button id="mf-clear-cache" class="mf-btn mf-btn-secondary" style="height:40px; font-size:12px; border-color:#e74c3c; color:#e74c3c;">
+                    <button id="mf-clear-cache" class="mf-btn mf-btn-secondary mf-danger-action">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:5px;">
                             <path d="M3 6h18"></path>
                             <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
@@ -128,14 +128,30 @@ export function showSettingsModal(onThemeChanged) {
     });
 
     // キャッシュ削除
-    document.getElementById('mf-clear-cache').addEventListener('click', () => {
-        if (confirm('保存されたキャッシュデータをすべて削除しますか？\n次回取得時は再度通信が発生します。')) {
-            const count = clearCache();
-            alert(`${count}件のキャッシュを削除しました。`);
-            // 表示更新
-            document.getElementById('mf-cache-count').textContent = '0';
-            document.getElementById('mf-cache-size').textContent = '0.0';
+    let cacheClearArmed = false;
+    let cacheClearTimer = null;
+    const clearCacheButton = document.getElementById('mf-clear-cache');
+    clearCacheButton.addEventListener('click', async () => {
+        if (!cacheClearArmed) {
+            cacheClearArmed = true;
+            clearCacheButton.textContent = 'もう一度押すと削除します';
+            clearCacheTimer = setTimeout(() => {
+                cacheClearArmed = false;
+                clearCacheButton.textContent = 'キャッシュをすべて削除';
+            }, 3000);
+            return;
         }
+
+        if (cacheClearTimer) clearTimeout(cacheClearTimer);
+        const count = await clearCache();
+        cacheClearArmed = false;
+        clearCacheButton.textContent = `${count}件のキャッシュを削除しました`;
+        document.getElementById('mf-cache-count').textContent = '0';
+        document.getElementById('mf-cache-size').textContent = '0.0';
+
+        setTimeout(() => {
+            clearCacheButton.textContent = 'キャッシュをすべて削除';
+        }, 1800);
     });
 
     // 保存
@@ -158,6 +174,6 @@ export function showSettingsModal(onThemeChanged) {
         closeModal();
 
         // コールバック (グラフ再描画など)
-        if (onThemeChanged) onThemeChanged();
+        if (typeof onThemeChanged === 'function') onThemeChanged();
     });
 }

@@ -1,13 +1,50 @@
 import { getCacheKey, isCacheable } from './cache.js';
 
-let isProcessing = false;
+let activeOperation = null;
+
+function beginOperation() {
+    if (activeOperation) return null;
+    activeOperation = Symbol('fetch-operation');
+    return activeOperation;
+}
+
+function endOperation(operation) {
+    if (activeOperation === operation) {
+        activeOperation = null;
+    }
+}
+
+function hasExtensionStorage() {
+    return typeof chrome !== 'undefined' && Boolean(chrome.storage?.local);
+}
+
+function removeLegacyCache(key) {
+    try {
+        localStorage.removeItem(key);
+    } catch {
+        // Ignore pages that block localStorage access.
+    }
+}
+
+async function getCachedValue(key) {
+    if (!hasExtensionStorage()) return null;
+    const cached = await chrome.storage.local.get(key);
+    removeLegacyCache(key);
+    return typeof cached[key] === 'string' ? cached[key] : null;
+}
+
+async function setCachedValue(key, value) {
+    if (!hasExtensionStorage()) return;
+    await chrome.storage.local.set({ [key]: value });
+    removeLegacyCache(key);
+}
 
 // ==========================================
 // データ取得ロジック (共通)
 // ==========================================
 export async function fetchData(years, onProgress) {
-    if (isProcessing) return null;
-    isProcessing = true;
+    const operation = beginOperation();
+    if (!operation) return null;
 
     try {
         const maxYears = years === 'all' ? 20 : parseInt(years, 10);
@@ -41,7 +78,7 @@ export async function fetchData(years, onProgress) {
                 try {
                     // キャッシュチェック
                     if (task.isCacheable) {
-                        const cachedCSV = localStorage.getItem(task.cacheKey);
+                        const cachedCSV = await getCachedValue(task.cacheKey);
                         if (cachedCSV) {
                             const rows = parseCSV(cachedCSV);
                             if (rows.length > 1) return rows;
@@ -59,7 +96,7 @@ export async function fetchData(years, onProgress) {
                         // キャッシュ保存
                         if (task.isCacheable) {
                             try {
-                                localStorage.setItem(task.cacheKey, text);
+                                await setCachedValue(task.cacheKey, text);
                             } catch (e) { console.warn('Cache storage failed (quota exceeded?)', e); }
                         }
                         return rows;
@@ -87,7 +124,7 @@ export async function fetchData(years, onProgress) {
         }
 
         // 日付順ソート（新しい順）
-        allCsvRows.sort((a, b) => new Date(b[0]) - new Date(a[0]));
+        allCsvRows.sort((a, b) => parseLocalDate(b[0]) - parseLocalDate(a[0]));
         const uniqueRows = unique(allCsvRows);
 
         return { headers, rows: uniqueRows };
@@ -96,7 +133,7 @@ export async function fetchData(years, onProgress) {
         console.error(err);
         return null;
     } finally {
-        isProcessing = false;
+        endOperation(operation);
     }
 }
 
@@ -104,25 +141,28 @@ export async function fetchData(years, onProgress) {
 // 特定月のデータ取得（日次モード用）
 // ==========================================
 export async function fetchMonthlyData(year, month) {
-    // 対象月の月末日を計算
-    const lastDay = new Date(year, month, 0); // monthは1-indexed
-    const dateStr = formatDate(lastDay);
-    const cacheKey = `mf_daily_${year}_${month}`;
-
-    // キャッシュチェック（当月以外はキャッシュ可能）
-    const now = new Date();
-    const isCurrentMonth = year === now.getFullYear() && month === (now.getMonth() + 1);
-
-    if (!isCurrentMonth) {
-        const cached = localStorage.getItem(cacheKey);
-        if (cached) {
-            try {
-                return JSON.parse(cached);
-            } catch (e) { /* ignore */ }
-        }
-    }
+    const operation = beginOperation();
+    if (!operation) return null;
 
     try {
+        // 対象月の月末日を計算
+        const lastDay = new Date(year, month, 0); // monthは1-indexed
+        const dateStr = formatDate(lastDay);
+        const cacheKey = `mf_daily_${year}_${month}`;
+
+        // キャッシュチェック（当月以外はキャッシュ可能）
+        const now = new Date();
+        const isCurrentMonth = year === now.getFullYear() && month === (now.getMonth() + 1);
+
+        if (!isCurrentMonth) {
+            const cached = await getCachedValue(cacheKey);
+            if (cached) {
+                try {
+                    return JSON.parse(cached);
+                } catch (e) { /* ignore */ }
+            }
+        }
+
         const url = `https://moneyforward.com/bs/history/list/${dateStr}/monthly/csv`;
         const res = await fetch(url);
         if (!res.ok) return null;
@@ -137,19 +177,19 @@ export async function fetchMonthlyData(year, month) {
 
         // 対象月のデータだけにフィルタリング
         dataRows = dataRows.filter(r => {
-            const d = new Date(r[0]);
+            const d = parseLocalDate(r[0]);
             return d.getFullYear() === year && (d.getMonth() + 1) === month;
         });
 
         // 日付順ソート（古い順）
-        dataRows.sort((a, b) => new Date(a[0]) - new Date(b[0]));
+        dataRows.sort((a, b) => parseLocalDate(a[0]) - parseLocalDate(b[0]));
 
         const result = { headers, rows: dataRows };
 
         // 当月以外はキャッシュ保存
         if (!isCurrentMonth) {
             try {
-                localStorage.setItem(cacheKey, JSON.stringify(result));
+                await setCachedValue(cacheKey, JSON.stringify(result));
             } catch (e) { console.warn('Cache storage failed', e); }
         }
 
@@ -157,6 +197,8 @@ export async function fetchMonthlyData(year, month) {
     } catch (e) {
         console.error('fetchMonthlyData error:', e);
         return null;
+    } finally {
+        endOperation(operation);
     }
 }
 
@@ -170,6 +212,15 @@ export function formatDate(date) {
 }
 
 function getPrevMonthEnd(date) { return new Date(date.getFullYear(), date.getMonth(), 0); }
+
+export function parseLocalDate(dateString) {
+    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateString || '');
+    if (match) {
+        const [, year, month, day] = match;
+        return new Date(Number(year), Number(month) - 1, Number(day));
+    }
+    return new Date(dateString);
+}
 
 function readBlobAsText(blob, encoding) {
     return new Promise((resolve, reject) => {
