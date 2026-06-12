@@ -312,18 +312,15 @@ export function showGraphModal(initialData = null) {
         const top = Math.max(0, canvasRect.top - stageRect.top);
         const height = Math.max(0, canvasRect.height);
         const width = Math.max(2, right - left);
-        const clampedCenter = Math.min(stageRect.width - 8, Math.max(8, left + width / 2));
 
         zoomSelectionLayer.style.display = 'block';
         zoomSelectionBox.style.display = 'block';
-        zoomSelectionLabel.style.display = 'block';
+        zoomSelectionLabel.style.display = 'none';
         zoomSelectionBox.style.left = `${left}px`;
         zoomSelectionBox.style.top = `${top}px`;
         zoomSelectionBox.style.width = `${width}px`;
         zoomSelectionBox.style.height = `${height}px`;
-        zoomSelectionLabel.style.left = `${clampedCenter}px`;
-        zoomSelectionLabel.style.top = `${Math.max(8, top + 8)}px`;
-        zoomSelectionLabel.textContent = formatZoomStateLabel(previewRange, '選択中');
+        zoomSelectionLabel.textContent = '';
     }
 
     function syncZoomControls() {
