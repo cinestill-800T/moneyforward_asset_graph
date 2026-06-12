@@ -1,4 +1,4 @@
-export const EXTENSION_VERSION = '2.8.0';
+export const EXTENSION_VERSION = '2.8.1';
 
 // カラープリセット定義
 export const COLOR_PRESETS = [

@@ -25,7 +25,9 @@ cp -R src "$OUT_DIR/"
 
 if [[ "$CONFIGURATION" == "release" ]]; then
   rm -f "release/$PACKAGE_NAME.zip"
-  (cd release && /usr/bin/ditto -c -k --sequesterRsrc --keepParent "$PACKAGE_NAME" "$PACKAGE_NAME.zip")
+  (cd "$OUT_DIR" && COPYFILE_DISABLE=1 /usr/bin/zip -rq "../$PACKAGE_NAME.zip" . \
+    -x "*.DS_Store" \
+    -x "__MACOSX/*")
 fi
 
 echo "Built $OUT_DIR"

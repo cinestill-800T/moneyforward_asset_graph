@@ -1,6 +1,6 @@
 # Privacy Policy - MoneyForward Asset Graph
 
-Last Updated: December 20, 2025
+Last Updated: June 12, 2026
 
 ## Overview
 
@@ -18,7 +18,7 @@ This extension:
 
 ## Data Storage
 
-The extension uses browser's localStorage to store:
+The extension uses Chrome extension local storage and browser localStorage to store:
 
 1. **Cache Data**: Previously fetched asset data is cached locally to improve loading speed. This data never leaves your browser.
 2. **Theme Settings**: Your selected color theme preference.
@@ -31,7 +31,8 @@ This extension requires the following permissions:
 
 | Permission | Purpose |
 |------------|---------|
-| `https://moneyforward.com/*` | Access MoneyForward ME pages to read and display asset data |
+| `storage` | Store cached graph data and UI preferences locally in your browser |
+| `https://moneyforward.com/bs/history*` | Run the graph UI only on the MoneyForward ME asset history page |
 
 ## Third-Party Services
 

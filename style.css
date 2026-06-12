@@ -5,6 +5,11 @@
   --mf-color-2: hsl(156 72% 52%);
   --mf-color-3: hsl(44 96% 62%);
   --mf-color-4: hsl(220 24% 92%);
+  --mf-zoom-surface: hsl(220 14% 8% / 0.86);
+  --mf-zoom-surface-strong: hsl(220 14% 8% / 0.96);
+  --mf-zoom-border: color-mix(in oklab, var(--mf-color-1), transparent 58%);
+  --mf-zoom-fill: color-mix(in oklab, var(--mf-color-1), transparent 84%);
+  --mf-zoom-fill-strong: color-mix(in oklab, var(--mf-color-2), transparent 86%);
 
   --mf-bg-primary: hsl(220 14% 8%);
   --mf-bg-secondary: hsl(222 16% 11% / 0.92);
@@ -42,6 +47,11 @@
 }
 
 :root.mf-light {
+  --mf-zoom-surface: hsl(220 36% 98% / 0.92);
+  --mf-zoom-surface-strong: hsl(220 36% 98% / 0.98);
+  --mf-zoom-border: color-mix(in oklab, var(--mf-color-1), hsl(220 24% 60%) 26%);
+  --mf-zoom-fill: color-mix(in oklab, var(--mf-color-1), transparent 88%);
+  --mf-zoom-fill-strong: color-mix(in oklab, var(--mf-color-2), transparent 90%);
   --mf-bg-primary: hsl(220 36% 98%);
   --mf-bg-secondary: hsl(220 32% 96% / 0.94);
   --mf-bg-tertiary: hsl(220 28% 92% / 0.92);
@@ -863,6 +873,200 @@
   box-shadow: inset 0 1px 0 hsl(220 14% 96% / 0.06) !important;
 }
 
+.mf-graph-zooming .mf-chart-stage,
+.mf-graph-zoom-active .mf-chart-stage,
+.mf-chart-stage.mf-zooming,
+.mf-chart-stage.mf-zoom-active,
+.mf-chart-stage.mf-graph-zoom-active {
+  border-color: var(--mf-zoom-border) !important;
+  box-shadow:
+    0 0 0 1px color-mix(in oklab, var(--mf-color-1), transparent 78%),
+    inset 0 1px 0 hsl(220 14% 96% / 0.08),
+    0 12px 30px color-mix(in oklab, var(--mf-color-1), transparent 90%) !important;
+}
+
+#mf-chart.mf-graph-zoom-active {
+  cursor: zoom-out !important;
+}
+
+#mf-chart.mf-graph-zoom-dragging {
+  cursor: grabbing !important;
+  user-select: none !important;
+}
+
+.mf-zoom-selection,
+.mf-graph-zoom-selection,
+.mf-chart-zoom-selection,
+.mf-drag-selection,
+.mf-selection-rect,
+.mf-zoom-rect {
+  position: absolute !important;
+  z-index: 6 !important;
+  min-width: 1px !important;
+  min-height: 1px !important;
+  pointer-events: none !important;
+  overflow: hidden !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: color-mix(in oklab, var(--mf-color-1), transparent 91%) !important;
+  box-shadow:
+    inset 1px 0 0 color-mix(in oklab, var(--mf-color-1), white 18%),
+    inset -1px 0 0 color-mix(in oklab, var(--mf-color-1), white 18%),
+    inset 0 1px 0 hsl(220 24% 96% / 0.08),
+    inset 0 -1px 0 hsl(220 24% 96% / 0.05) !important;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.mf-zoom-selection::before,
+.mf-graph-zoom-selection::before,
+.mf-chart-zoom-selection::before,
+.mf-drag-selection::before,
+.mf-selection-rect::before,
+.mf-zoom-rect::before {
+  content: "" !important;
+  position: absolute !important;
+  top: 0 !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  width: 2px !important;
+  border-radius: 999px !important;
+  background: color-mix(in oklab, var(--mf-color-1), white 14%) !important;
+  box-shadow: 0 0 0 1px hsl(220 24% 96% / 0.18), 0 0 12px color-mix(in oklab, var(--mf-color-1), transparent 58%) !important;
+}
+
+.mf-zoom-selection::after,
+.mf-graph-zoom-selection::after,
+.mf-chart-zoom-selection::after,
+.mf-drag-selection::after,
+.mf-selection-rect::after,
+.mf-zoom-rect::after {
+  content: "" !important;
+  position: absolute !important;
+  top: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 2px !important;
+  border-radius: 999px !important;
+  background: color-mix(in oklab, var(--mf-color-1), white 14%) !important;
+  box-shadow: 0 0 0 1px hsl(220 24% 96% / 0.18), 0 0 12px color-mix(in oklab, var(--mf-color-1), transparent 58%) !important;
+}
+
+.mf-zoom-banner,
+.mf-graph-zoom-banner,
+.mf-chart-zoom-banner,
+.mf-zoom-toolbar {
+  position: absolute !important;
+  top: 10px !important;
+  left: 10px !important;
+  right: 10px !important;
+  z-index: 7 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 10px !important;
+  min-height: 36px !important;
+  padding: 7px 10px !important;
+  border: 1px solid var(--mf-border) !important;
+  border-radius: 12px !important;
+  background: var(--mf-zoom-surface) !important;
+  color: var(--mf-text-main) !important;
+  box-shadow: var(--mf-shadow-soft) !important;
+  backdrop-filter: blur(14px) saturate(140%);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  pointer-events: auto !important;
+}
+
+.mf-zoom-badge,
+.mf-graph-zoom-badge,
+.mf-chart-zoom-badge,
+.mf-zoom-label,
+.mf-zoom-state,
+.mf-zoom-granularity,
+.mf-zoom-granularity-badge,
+.mf-zoom-granularity-label,
+.mf-zoom-scope,
+.mf-zoom-scope-badge,
+.mf-zoom-scope-label {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  min-height: 24px !important;
+  max-width: 100% !important;
+  padding: 0 10px !important;
+  border: 1px solid color-mix(in oklab, var(--mf-color-1), var(--mf-border) 28%) !important;
+  border-radius: 999px !important;
+  background:
+    linear-gradient(180deg, var(--mf-zoom-surface-strong), var(--mf-zoom-surface)),
+    color-mix(in oklab, var(--mf-color-1), transparent 86%) !important;
+  color: var(--mf-text-main) !important;
+  font-size: var(--mf-text-xs) !important;
+  font-weight: 800 !important;
+  line-height: 1.15 !important;
+  letter-spacing: 0 !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  box-shadow:
+    inset 0 1px 0 hsl(220 24% 96% / 0.24),
+    0 8px 18px color-mix(in oklab, var(--mf-color-1), transparent 92%) !important;
+}
+
+.mf-zoom-state,
+.mf-zoom-granularity-badge,
+.mf-zoom-scope-badge {
+  border-color: color-mix(in oklab, var(--mf-color-2), var(--mf-border) 28%) !important;
+  background:
+    linear-gradient(180deg, var(--mf-zoom-surface-strong), color-mix(in oklab, var(--mf-color-2), transparent 90%)),
+    color-mix(in oklab, var(--mf-color-2), transparent 84%) !important;
+}
+
+.mf-zoom-hint,
+.mf-graph-zoom-hint,
+.mf-chart-zoom-hint,
+.mf-zoom-tip {
+  color: var(--mf-text-sub) !important;
+  font-size: var(--mf-text-xs) !important;
+  line-height: 1.45 !important;
+}
+
+.mf-zoom-reset-btn,
+.mf-graph-zoom-reset-btn,
+.mf-chart-zoom-reset-btn,
+.mf-zoom-clear-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 6px !important;
+  min-height: 30px !important;
+  padding: 0 11px !important;
+  border: 1px solid var(--mf-border) !important;
+  border-radius: 10px !important;
+  background: var(--mf-control-bg) !important;
+  color: var(--mf-text-main) !important;
+  font-size: var(--mf-text-xs) !important;
+  font-weight: 800 !important;
+  cursor: pointer !important;
+  transition: var(--mf-transition) !important;
+}
+
+.mf-zoom-reset-btn:hover,
+.mf-graph-zoom-reset-btn:hover,
+.mf-chart-zoom-reset-btn:hover,
+.mf-zoom-clear-btn:hover {
+  border-color: color-mix(in oklab, var(--mf-color-1), var(--mf-border) 42%) !important;
+  background: var(--mf-control-bg-strong) !important;
+  box-shadow: 0 10px 22px color-mix(in oklab, var(--mf-color-1), transparent 90%) !important;
+  transform: translateY(-1px) !important;
+}
+
+.mf-zoom-banner :where(button, .mf-icon-button),
+.mf-graph-zoom-banner :where(button, .mf-icon-button),
+.mf-chart-zoom-banner :where(button, .mf-icon-button),
+.mf-zoom-toolbar :where(button, .mf-icon-button) {
+  flex: 0 0 auto !important;
+}
+
 #mf-chart {
   display: block !important;
   width: 100% !important;
@@ -1323,6 +1527,47 @@
 
   .mf-chart-stage {
     min-height: 320px !important;
+  }
+
+  .mf-zoom-banner,
+  .mf-graph-zoom-banner,
+  .mf-chart-zoom-banner,
+  .mf-zoom-toolbar {
+    top: 8px !important;
+    left: 8px !important;
+    right: 8px !important;
+    padding: 6px 8px !important;
+    gap: 8px !important;
+    min-height: 32px !important;
+    border-radius: 11px !important;
+    flex-wrap: wrap !important;
+    align-items: flex-start !important;
+    justify-content: flex-start !important;
+  }
+
+  .mf-zoom-hint,
+  .mf-graph-zoom-hint,
+  .mf-chart-zoom-hint,
+  .mf-zoom-tip {
+    display: none !important;
+  }
+
+  .mf-zoom-reset-btn,
+  .mf-graph-zoom-reset-btn,
+  .mf-chart-zoom-reset-btn,
+  .mf-zoom-clear-btn {
+    min-height: 28px !important;
+    padding-inline: 10px !important;
+  }
+
+  .mf-zoom-selection,
+  .mf-graph-zoom-selection,
+  .mf-chart-zoom-selection,
+  .mf-drag-selection,
+  .mf-selection-rect,
+  .mf-zoom-rect {
+    border-width: 2px !important;
+    border-radius: 10px !important;
   }
 }
 

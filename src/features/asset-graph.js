@@ -9,6 +9,61 @@ let isDailyMode = false;
 let dailyModeYear = new Date().getFullYear();
 let dailyModeMonth = new Date().getMonth() + 1; // 1-indexed
 let dailyModeData = null;
+let verticalGridTouched = false;
+
+// 横方向ドラッグによる一時ズーム
+const GRAPH_ZOOM_DRAG_THRESHOLD_PX = 10;
+let graphZoomState = {
+    active: false,
+    dragging: false,
+    startClientX: 0,
+    startClientY: 0,
+    lastClientX: 0,
+    lastClientY: 0,
+    pointerId: null,
+    range: null,
+    previewRange: null
+};
+let graphModalKeydownHandler = null;
+let clearGraphZoomForActiveModal = null;
+
+function resetGraphZoomState() {
+    graphZoomState = {
+        active: false,
+        dragging: false,
+        startClientX: 0,
+        startClientY: 0,
+        lastClientX: 0,
+        lastClientY: 0,
+        pointerId: null,
+        range: null,
+        previewRange: null
+    };
+}
+
+function getGraphGranularityLabel() {
+    return isDailyMode ? '日次' : '月次';
+}
+
+function formatGraphDateLabel(value) {
+    const date = value instanceof Date ? value : parseLocalDate(value);
+    if (!(date instanceof Date) || Number.isNaN(date.getTime())) {
+        return String(value ?? '');
+    }
+
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}/${month}/${day}`;
+}
+
+function formatZoomStateLabel(range, prefix) {
+    if (!range) {
+        return `表示粒度: ${getGraphGranularityLabel()}`;
+    }
+
+    return `${prefix}: ${formatGraphDateLabel(range.startLabel)} - ${formatGraphDateLabel(range.endLabel)} / ${getGraphGranularityLabel()}`;
+}
 
 // ==========================================
 // グラフモーダル & 内部ロジック
@@ -19,7 +74,15 @@ export function showGraphModal(initialData = null) {
 
     const existingModal = document.querySelector('.mf-modal-overlay');
     // 設定モーダルが開いている場合は閉じない
-    if (existingModal && existingModal.id !== 'mf-settings-modal') existingModal.remove();
+    if (existingModal && existingModal.id !== 'mf-settings-modal') {
+        if (graphModalKeydownHandler) {
+            document.removeEventListener('keydown', graphModalKeydownHandler);
+            graphModalKeydownHandler = null;
+        }
+        existingModal.remove();
+        clearGraphZoomForActiveModal = null;
+        resetGraphModalState();
+    }
 
     const modal = document.createElement('div');
     modal.className = 'mf-modal-overlay';
@@ -31,9 +94,11 @@ export function showGraphModal(initialData = null) {
                 <div class="mf-graph-title-group">
                     <div class="mf-modal-title">資産推移グラフ</div>
                     <div id="mf-status-msg" class="mf-status-pill"></div>
+                    <div id="mf-zoom-state" class="mf-status-pill mf-zoom-state" style="display:none;"></div>
                 </div>
                 <div class="mf-graph-actions">
                     <button class="mf-modal-btn mf-modal-btn-primary" id="mf-modal-fetch">再取得・描画</button>
+                    <button type="button" class="mf-modal-btn mf-modal-btn-close mf-small-action mf-zoom-reset-btn" id="mf-zoom-reset-btn" style="display:none;">ズーム解除</button>
                     <button class="mf-modal-btn mf-modal-btn-close mf-icon-button" id="mf-modal-close" aria-label="グラフを閉じる">×</button>
                 </div>
             </div>
@@ -120,6 +185,7 @@ export function showGraphModal(initialData = null) {
                 </div>
                 <div class="mf-chart-stage">
                     <canvas id="mf-chart"></canvas>
+                    <div id="mf-zoom-selection-layer" class="mf-zoom-selection-layer" aria-hidden="true" style="display:none; position:absolute; inset:0; pointer-events:none;"></div>
                     <div id="mf-no-data-msg" class="mf-empty-state" style="display:none;">
                         <p>表示できるデータがありません。<br>条件を変更して「再取得・描画」を押してください。</p>
                     </div>
@@ -138,6 +204,10 @@ export function showGraphModal(initialData = null) {
                     <label class="mf-check-label">
                         <input type="checkbox" id="mf-chart-diff-check">
                         増減表示
+                    </label>
+                    <label class="mf-check-label">
+                        <input type="checkbox" id="mf-chart-vertical-grid-check">
+                        縦グリッド
                     </label>
                     <div class="mf-footer-divider"></div>
                     <label class="mf-check-label">
@@ -165,10 +235,299 @@ export function showGraphModal(initialData = null) {
 
     `;
     document.body.appendChild(modal);
+    const zoomAnnouncer = document.createElement('div');
+    zoomAnnouncer.id = 'mf-zoom-announcer';
+    zoomAnnouncer.setAttribute('aria-live', 'polite');
+    zoomAnnouncer.setAttribute('aria-atomic', 'true');
+    zoomAnnouncer.style.position = 'absolute';
+    zoomAnnouncer.style.left = '-9999px';
+    zoomAnnouncer.style.width = '1px';
+    zoomAnnouncer.style.height = '1px';
+    zoomAnnouncer.style.overflow = 'hidden';
+    modal.appendChild(zoomAnnouncer);
+
+    const zoomResetBtn = document.getElementById('mf-zoom-reset-btn');
+    const zoomStateBadge = document.getElementById('mf-zoom-state');
+    const chartCanvas = document.getElementById('mf-chart');
+    const chartStage = document.querySelector('.mf-chart-stage');
+    const zoomSelectionLayer = document.getElementById('mf-zoom-selection-layer');
+
+    if (chartStage && chartStage.style.position !== 'relative') {
+        chartStage.style.position = 'relative';
+    }
+
+    const zoomSelectionBox = document.createElement('div');
+    zoomSelectionBox.className = 'mf-zoom-selection';
+    zoomSelectionBox.style.position = 'absolute';
+    zoomSelectionBox.style.top = '0';
+    zoomSelectionBox.style.height = '0';
+    zoomSelectionBox.style.display = 'none';
+    zoomSelectionBox.style.boxSizing = 'border-box';
+    zoomSelectionBox.style.zIndex = '2';
+
+    const zoomSelectionLabel = document.createElement('div');
+    zoomSelectionLabel.className = 'mf-zoom-selection-label';
+    zoomSelectionLabel.style.position = 'absolute';
+    zoomSelectionLabel.style.top = '8px';
+    zoomSelectionLabel.style.transform = 'translateX(-50%)';
+    zoomSelectionLabel.style.padding = '4px 8px';
+    zoomSelectionLabel.style.borderRadius = '999px';
+    zoomSelectionLabel.style.background = 'hsl(220 14% 13% / 0.92)';
+    zoomSelectionLabel.style.color = 'hsl(220 24% 96%)';
+    zoomSelectionLabel.style.fontSize = '11px';
+    zoomSelectionLabel.style.lineHeight = '1.2';
+    zoomSelectionLabel.style.fontWeight = '600';
+    zoomSelectionLabel.style.whiteSpace = 'nowrap';
+    zoomSelectionLabel.style.maxWidth = 'calc(100% - 16px)';
+    zoomSelectionLabel.style.overflow = 'hidden';
+    zoomSelectionLabel.style.textOverflow = 'ellipsis';
+    zoomSelectionLabel.style.display = 'none';
+    zoomSelectionLabel.style.zIndex = '3';
+
+    zoomSelectionLayer?.appendChild(zoomSelectionBox);
+    zoomSelectionLayer?.appendChild(zoomSelectionLabel);
+
+    function announceZoomState(message) {
+        if (!zoomAnnouncer) return;
+        zoomAnnouncer.textContent = message;
+    }
+
+    function updateZoomSelectionOverlay() {
+        if (!zoomSelectionLayer || !zoomSelectionBox || !zoomSelectionLabel || !chartCanvas || !chartStage) return;
+
+        const previewRange = graphZoomState.dragging ? graphZoomState.previewRange : null;
+        if (!previewRange) {
+            zoomSelectionLayer.style.display = 'none';
+            zoomSelectionBox.style.display = 'none';
+            zoomSelectionLabel.style.display = 'none';
+            return;
+        }
+
+        const stageRect = chartStage.getBoundingClientRect();
+        const canvasRect = chartCanvas.getBoundingClientRect();
+        const rawLeft = Math.min(graphZoomState.startClientX, graphZoomState.lastClientX);
+        const rawRight = Math.max(graphZoomState.startClientX, graphZoomState.lastClientX);
+        const left = Math.max(0, Math.min(stageRect.width, rawLeft - stageRect.left));
+        const right = Math.max(0, Math.min(stageRect.width, rawRight - stageRect.left));
+        const top = Math.max(0, canvasRect.top - stageRect.top);
+        const height = Math.max(0, canvasRect.height);
+        const width = Math.max(2, right - left);
+        const clampedCenter = Math.min(stageRect.width - 8, Math.max(8, left + width / 2));
+
+        zoomSelectionLayer.style.display = 'block';
+        zoomSelectionBox.style.display = 'block';
+        zoomSelectionLabel.style.display = 'block';
+        zoomSelectionBox.style.left = `${left}px`;
+        zoomSelectionBox.style.top = `${top}px`;
+        zoomSelectionBox.style.width = `${width}px`;
+        zoomSelectionBox.style.height = `${height}px`;
+        zoomSelectionLabel.style.left = `${clampedCenter}px`;
+        zoomSelectionLabel.style.top = `${Math.max(8, top + 8)}px`;
+        zoomSelectionLabel.textContent = formatZoomStateLabel(previewRange, '選択中');
+    }
+
+    function syncZoomControls() {
+        const active = graphZoomState.active && !!graphZoomState.range;
+        const previewing = graphZoomState.dragging && !!graphZoomState.previewRange;
+        if (zoomResetBtn) zoomResetBtn.style.display = active ? 'inline-flex' : 'none';
+        if (zoomStateBadge) {
+            zoomStateBadge.style.display = 'inline-flex';
+            zoomStateBadge.textContent = previewing
+                ? formatZoomStateLabel(graphZoomState.previewRange, '選択中')
+                : active
+                    ? formatZoomStateLabel(graphZoomState.range, 'ズーム中')
+                    : formatZoomStateLabel(null);
+        }
+        if (modal) modal.classList.toggle('mf-graph-zoom-active', active);
+        if (chartCanvas) chartCanvas.classList.toggle('mf-graph-zoom-active', active);
+        updateZoomSelectionOverlay();
+    }
+
+    function applyChartZoomRange(range) {
+        if (!globalChart || !range) return;
+        const xScaleOptions = globalChart.options?.scales?.x;
+        if (!xScaleOptions) return;
+        xScaleOptions.min = range.startIndex;
+        xScaleOptions.max = range.endIndex;
+        globalChart.update('none');
+    }
+
+    function clearGraphZoom(shouldUpdateChart = true) {
+        graphZoomState = {
+            active: false,
+            dragging: false,
+            startClientX: 0,
+            startClientY: 0,
+            lastClientX: 0,
+            lastClientY: 0,
+            pointerId: null,
+            range: null,
+            previewRange: null
+        };
+        if (shouldUpdateChart && globalChart) {
+            const xScaleOptions = globalChart.options?.scales?.x;
+            if (xScaleOptions) {
+                xScaleOptions.min = undefined;
+                xScaleOptions.max = undefined;
+                globalChart.update('none');
+            }
+        }
+        syncZoomControls();
+    }
+    clearGraphZoomForActiveModal = clearGraphZoom;
+
+    function zoomToRange(range) {
+        if (!range || !globalChart) return;
+        graphZoomState.active = true;
+        graphZoomState.dragging = false;
+        graphZoomState.range = range;
+        graphZoomState.previewRange = null;
+        applyChartZoomRange(range);
+        syncZoomControls();
+        announceZoomState(formatZoomStateLabel(range, 'ズーム中'));
+    }
+
+    function getChartZoomRangeFromPixels(startX, endX, allowSinglePoint = false) {
+        if (!globalChart || !globalChart.scales || !globalChart.scales.x) return null;
+
+        const xScale = globalChart.scales.x;
+        const labels = globalChart.data?.labels || [];
+        if (labels.length < 2) return null;
+
+        const chartArea = globalChart.chartArea;
+        if (!chartArea || chartArea.right <= chartArea.left) return null;
+
+        const canvasRect = chartCanvas?.getBoundingClientRect();
+        const pixelRatio = canvasRect && canvasRect.width > 0 ? (globalChart.width / canvasRect.width) : 1;
+        const startPixel = Math.min(Math.max((startX - (canvasRect?.left || 0)) * pixelRatio, chartArea.left), chartArea.right);
+        const endPixel = Math.min(Math.max((endX - (canvasRect?.left || 0)) * pixelRatio, chartArea.left), chartArea.right);
+        const startValue = xScale.getValueForPixel(startPixel);
+        const endValue = xScale.getValueForPixel(endPixel);
+        const startIndex = Math.max(0, Math.min(labels.length - 1, Math.round(Number(startValue))));
+        const endIndex = Math.max(0, Math.min(labels.length - 1, Math.round(Number(endValue))));
+        const minIndex = Math.min(startIndex, endIndex);
+        const maxIndex = Math.max(startIndex, endIndex);
+
+        if (!allowSinglePoint && maxIndex - minIndex < 1) return null;
+
+        return {
+            startIndex: minIndex,
+            endIndex: maxIndex,
+            startLabel: labels[minIndex],
+            endLabel: labels[maxIndex]
+        };
+    }
+
+    function initializeGraphZoomInteractions() {
+        if (!chartCanvas || chartCanvas.dataset.zoomListenersAttached === '1') return;
+        chartCanvas.dataset.zoomListenersAttached = '1';
+
+        chartCanvas.addEventListener('pointerdown', (event) => {
+            if (event.pointerType !== 'mouse' && event.pointerType !== 'pen') return;
+            if (typeof event.button === 'number' && event.button !== 0) return;
+            if (!globalChart || !globalChart.scales || !globalChart.scales.x) return;
+
+            graphZoomState.dragging = false;
+            graphZoomState.previewRange = null;
+            graphZoomState.pointerId = event.pointerId;
+            graphZoomState.startClientX = event.clientX;
+            graphZoomState.startClientY = event.clientY;
+            graphZoomState.lastClientX = event.clientX;
+            graphZoomState.lastClientY = event.clientY;
+
+            try {
+                chartCanvas.setPointerCapture(event.pointerId);
+            } catch (_) {
+                // pointer capture が使えない環境ではそのまま継続する
+            }
+        });
+
+        chartCanvas.addEventListener('pointermove', (event) => {
+            if (graphZoomState.pointerId !== event.pointerId) return;
+            if (!globalChart || !globalChart.scales || !globalChart.scales.x) return;
+
+            graphZoomState.lastClientX = event.clientX;
+            graphZoomState.lastClientY = event.clientY;
+
+            const dx = event.clientX - graphZoomState.startClientX;
+            const dy = event.clientY - graphZoomState.startClientY;
+            if (!graphZoomState.dragging) {
+                if (Math.abs(dx) < GRAPH_ZOOM_DRAG_THRESHOLD_PX) return;
+                if (Math.abs(dx) < Math.abs(dy)) return;
+                graphZoomState.dragging = true;
+                chartCanvas.classList.add('mf-graph-zoom-dragging');
+                graphZoomState.previewRange = getChartZoomRangeFromPixels(graphZoomState.startClientX, event.clientX, true);
+                syncZoomControls();
+                announceZoomState(formatZoomStateLabel(graphZoomState.previewRange, '選択中'));
+                event.preventDefault();
+                return;
+            }
+
+            graphZoomState.previewRange = getChartZoomRangeFromPixels(graphZoomState.startClientX, event.clientX, true);
+            syncZoomControls();
+            event.preventDefault();
+        });
+
+        const finishDrag = (event, cancelled = false) => {
+            if (graphZoomState.pointerId !== event.pointerId) return;
+
+            const dx = event.clientX - graphZoomState.startClientX;
+            const dy = event.clientY - graphZoomState.startClientY;
+            const wasDragging = graphZoomState.dragging || Math.abs(dx) >= GRAPH_ZOOM_DRAG_THRESHOLD_PX || Math.abs(dy) >= GRAPH_ZOOM_DRAG_THRESHOLD_PX;
+
+            try {
+                chartCanvas.releasePointerCapture(event.pointerId);
+            } catch (_) {
+                // ignore
+            }
+
+            chartCanvas.classList.remove('mf-graph-zoom-dragging');
+
+            if (!cancelled && wasDragging) {
+                const range = getChartZoomRangeFromPixels(graphZoomState.startClientX, event.clientX);
+                if (range) {
+                    zoomToRange(range);
+                    showGraphNotice(`横ズーム適用: ${range.startLabel} 〜 ${range.endLabel}`, 'success');
+                }
+            }
+
+            graphZoomState.dragging = false;
+            graphZoomState.pointerId = null;
+            graphZoomState.startClientX = 0;
+            graphZoomState.startClientY = 0;
+            graphZoomState.lastClientX = 0;
+            graphZoomState.lastClientY = 0;
+            graphZoomState.previewRange = null;
+
+            if (!graphZoomState.active) syncZoomControls();
+        };
+
+        chartCanvas.addEventListener('pointerup', (event) => finishDrag(event, false));
+        chartCanvas.addEventListener('pointercancel', (event) => finishDrag(event, true));
+        chartCanvas.addEventListener('pointerleave', (event) => {
+            if (graphZoomState.pointerId === event.pointerId && graphZoomState.dragging) {
+                finishDrag(event, false);
+            }
+        });
+    }
+
+    function handleDocumentKeyDown(event) {
+        if (!modal.isConnected) return;
+        if (event.key === 'Escape' && graphZoomState.active) {
+            clearGraphZoom(true);
+            announceZoomState(formatZoomStateLabel(null));
+            showGraphNotice('ズームを解除しました', 'success');
+        }
+    }
 
     // イベント設定
     document.getElementById('mf-modal-close').addEventListener('click', () => {
+        if (graphModalKeydownHandler) {
+            document.removeEventListener('keydown', graphModalKeydownHandler);
+            graphModalKeydownHandler = null;
+        }
         modal.remove();
+        clearGraphZoomForActiveModal = null;
         resetGraphModalState();
     });
 
@@ -190,6 +549,7 @@ export function showGraphModal(initialData = null) {
     modeRadios.forEach(radio => {
         radio.addEventListener('change', (e) => {
             const val = e.target.value;
+            clearGraphZoom(false);
             optsYear.style.display = val === 'year' ? 'flex' : 'none';
             optsRange.style.display = val === 'range' ? 'flex' : 'none';
 
@@ -209,6 +569,7 @@ export function showGraphModal(initialData = null) {
 
     quickPeriodBtns.forEach(btn => {
         btn.addEventListener('click', () => {
+            clearGraphZoom(false);
             // 他のボタンの選択解除
             quickPeriodBtns.forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
@@ -227,6 +588,7 @@ export function showGraphModal(initialData = null) {
 
     // 未来予測ボタン：増減モードとは排他的
     predictionBtn.addEventListener('click', () => {
+        clearGraphZoom(false);
         predictionBtn.classList.toggle('active');
 
         // 予測ONの場合は増減モードをOFFに
@@ -246,6 +608,11 @@ export function showGraphModal(initialData = null) {
     const extractionRow = document.getElementById('mf-extraction-row');
     const dailyYearSelect = document.getElementById('mf-daily-year');
     const dailyMonthBtns = document.querySelectorAll('.mf-daily-month-btn');
+    const verticalGridCheck = document.getElementById('mf-chart-vertical-grid-check');
+
+    if (verticalGridCheck) {
+        verticalGridCheck.checked = false;
+    }
 
     // 年セレクト生成
     const curYear = new Date().getFullYear();
@@ -297,6 +664,7 @@ export function showGraphModal(initialData = null) {
 
     function enterDailyMode() {
         isDailyMode = true;
+        clearGraphZoom(false);
         dailyBtn.classList.add('active');
         periodGroup.style.display = 'none';
         dailyNav.style.display = 'flex';
@@ -304,18 +672,25 @@ export function showGraphModal(initialData = null) {
         if (extractionRow) extractionRow.style.display = 'none';
         advPeriodToggle.style.display = 'none';
         advPeriodPanel.style.display = 'none';
+        if (verticalGridCheck && !verticalGridTouched) {
+            verticalGridCheck.checked = true;
+        }
         updateDailyButtons();
         loadDailyData();
     }
 
     function exitDailyMode() {
         isDailyMode = false;
+        clearGraphZoom(false);
         dailyModeData = null;
         dailyBtn.classList.remove('active');
         periodGroup.style.display = 'flex';
         dailyNav.style.display = 'none';
         if (extractionRow) extractionRow.style.display = 'flex';
         advPeriodToggle.style.display = 'flex';
+        if (verticalGridCheck && !verticalGridTouched) {
+            verticalGridCheck.checked = false;
+        }
         updateGraph();
     }
 
@@ -330,6 +705,7 @@ export function showGraphModal(initialData = null) {
     // 月ボタンクリック
     dailyMonthBtns.forEach(btn => {
         btn.addEventListener('click', () => {
+            clearGraphZoom(false);
             dailyModeMonth = parseInt(btn.dataset.month, 10);
             updateDailyButtons();
             loadDailyData();
@@ -338,6 +714,7 @@ export function showGraphModal(initialData = null) {
 
     // 年セレクト変更
     dailyYearSelect.addEventListener('change', () => {
+        clearGraphZoom(false);
         dailyModeYear = parseInt(dailyYearSelect.value, 10);
         // 年が変わったら未来月チェック
         const now = new Date();
@@ -359,6 +736,7 @@ export function showGraphModal(initialData = null) {
     const advPeriodToggle = document.getElementById('mf-advanced-period-toggle');
     const advPeriodPanel = document.getElementById('mf-advanced-period-panel');
     advPeriodToggle.addEventListener('click', () => {
+        clearGraphZoom(true);
         const isOpen = advPeriodPanel.style.display !== 'none';
         advPeriodPanel.style.display = isOpen ? 'none' : 'block';
         advPeriodToggle.classList.toggle('active', !isOpen);
@@ -367,13 +745,23 @@ export function showGraphModal(initialData = null) {
     // 日付選択の変更でグラフ更新
     const daySelect = document.getElementById('mf-select-day');
     daySelect.addEventListener('change', () => {
+        clearGraphZoom(false);
         updateGraph();
     });
+
+    if (verticalGridCheck) {
+        verticalGridCheck.addEventListener('change', () => {
+            verticalGridTouched = true;
+            clearGraphZoom(false);
+            updateGraph();
+        });
+    }
 
     const fetchBtn = document.getElementById('mf-modal-fetch');
     const statusMsg = document.getElementById('mf-status-msg');
 
     fetchBtn.addEventListener('click', async () => {
+        clearGraphZoom(false);
         const mode = document.querySelector('input[name="mf-mode"]:checked').value;
         const loading = document.getElementById('mf-modal-loading');
         const progress = document.getElementById('mf-modal-progress');
@@ -412,11 +800,15 @@ export function showGraphModal(initialData = null) {
     });
 
     // グラフ更新トリガー
-    document.getElementById('mf-chart-stack-check').addEventListener('change', updateGraph);
+    document.getElementById('mf-chart-stack-check').addEventListener('change', () => {
+        clearGraphZoom(false);
+        updateGraph();
+    });
 
     // 増減モード：予測・移動平均とは排他的
     const diffCheck = document.getElementById('mf-chart-diff-check');
     diffCheck.addEventListener('change', () => {
+        clearGraphZoom(false);
         if (diffCheck.checked) {
             document.getElementById('mf-prediction-btn').classList.remove('active');
             document.getElementById('mf-chart-ma-check').checked = false;
@@ -429,13 +821,17 @@ export function showGraphModal(initialData = null) {
     const maCheck = document.getElementById('mf-chart-ma-check');
     const maPeriodSelect = document.getElementById('mf-ma-period');
     maCheck.addEventListener('change', () => {
+        clearGraphZoom(false);
         maPeriodSelect.disabled = !maCheck.checked;
         if (maCheck.checked) {
             document.getElementById('mf-chart-diff-check').checked = false;
         }
         updateGraph();
     });
-    maPeriodSelect.addEventListener('change', updateGraph);
+    maPeriodSelect.addEventListener('change', () => {
+        clearGraphZoom(false);
+        updateGraph();
+    });
 
     // サマリーテーブルトグル
     document.getElementById('mf-toggle-summary').addEventListener('click', () => {
@@ -450,6 +846,16 @@ export function showGraphModal(initialData = null) {
 
     document.getElementById('mf-copy-data').addEventListener('click', copyGraphData);
     document.getElementById('mf-copy-image').addEventListener('click', copyGraphImage);
+    zoomResetBtn?.addEventListener('click', () => {
+        clearGraphZoom(true);
+        announceZoomState(formatZoomStateLabel(null));
+        showGraphNotice('ズームを解除しました', 'success');
+    });
+    if (graphModalKeydownHandler) {
+        document.removeEventListener('keydown', graphModalKeydownHandler);
+    }
+    graphModalKeydownHandler = handleDocumentKeyDown;
+    document.addEventListener('keydown', graphModalKeydownHandler);
 
     document.getElementById('mf-download-csv').addEventListener('click', () => {
         const currentData = isDailyMode ? dailyModeData : lastFetchedData;
@@ -469,12 +875,17 @@ export function showGraphModal(initialData = null) {
     } else {
         document.getElementById('mf-no-data-msg').style.display = 'block';
     }
+
+    initializeGraphZoomInteractions();
+    syncZoomControls();
 }
 
 // ==========================================
 // フィルタリングロジック
 // ==========================================
 function resetGraphModalState() {
+    resetGraphZoomState();
+    clearGraphZoomForActiveModal = null;
     if (globalChart) {
         globalChart.destroy();
         globalChart = null;
@@ -484,6 +895,7 @@ function resetGraphModalState() {
     dailyModeYear = now.getFullYear();
     dailyModeMonth = now.getMonth() + 1;
     dailyModeData = null;
+    verticalGridTouched = false;
 }
 
 function showGraphNotice(message, type = 'info') {
@@ -589,6 +1001,7 @@ function getFilteredRows() {
 export function updateGraph() {
     if (!isDailyMode && !lastFetchedData) return;
     if (isDailyMode && !dailyModeData) return;
+    if (clearGraphZoomForActiveModal) clearGraphZoomForActiveModal(false);
     document.getElementById('mf-no-data-msg').style.display = 'none';
 
     const rows = getFilteredRows();
@@ -1058,7 +1471,7 @@ function drawChartCanvas(labels, headers, rows, isStacked, isDiff, isPrediction 
             },
             scales: {
                 x: {
-                    grid: { display: isDailyMode },
+                    grid: { display: document.getElementById('mf-chart-vertical-grid-check')?.checked || false },
                     ticks: {
                         color: textColor,
                         font: { size: isDailyMode ? 10 : 11 },
