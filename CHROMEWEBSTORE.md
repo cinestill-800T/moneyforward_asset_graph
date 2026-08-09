@@ -110,7 +110,8 @@ TBD
 
 | Version | Date | Changes | Status |
 |---------|------|---------|--------|
-| 2.8.1 | 2026-08-09 | Removed stacked, difference, vertical-grid, summary, forecast, and detailed-range features. Added year-based monthly display and year-over-year comparison for monthly, daily, and rolling one-year views. | Draft |
+| 2.8.2 | 2026-08-09 | Replaced detailed-range mode with year-based monthly display. Added year-over-year comparison for monthly, daily, and rolling one-year views. | Draft |
+| 2.8.1 | 2026-08-09 | Removed stacked, difference, vertical-grid, summary, and forecast controls and implementation while retaining asset trend, moving average, export, theme, cache, and range zoom features. | Published |
 | 2.8.0 | 2026-06-12 | Added vertical grid toggle and horizontal drag zoom for graph ranges. | Published |
 
 ## Review Notes

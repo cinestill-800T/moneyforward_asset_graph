@@ -1,6 +1,6 @@
 # MoneyForward Asset Graph
 
-[![Version](https://img.shields.io/badge/version-2.8.1-2563eb)](manifest.json)
+[![Version](https://img.shields.io/badge/version-2.8.2-2563eb)](manifest.json)
 [![Manifest V3](https://img.shields.io/badge/Chrome%20Extension-Manifest%20V3-16a34a)](manifest.json)
 [![Chrome](https://img.shields.io/badge/Browser-Google%20Chrome-4285f4)](https://www.google.com/chrome/)
 [![Privacy](https://img.shields.io/badge/privacy-local%20only-0f766e)](PRIVACY_POLICY.md)
@@ -12,7 +12,7 @@
 
 ## 現在のバージョン
 
-- Extension version: `2.8.1`
+- Extension version: `2.8.2`
 - Manifest: `Manifest V3`
 - 対象ページ: `https://moneyforward.com/bs/history*`
 - 利用権限: `storage`
