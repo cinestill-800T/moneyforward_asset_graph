@@ -27,7 +27,6 @@
   --mf-text-muted: hsl(218 13% 58%);
   --mf-chart-grid: hsl(220 14% 96% / 0.12);
   --mf-chart-text: hsl(218 18% 74%);
-  --mf-positive: hsl(156 72% 52%);
   --mf-negative: hsl(356 82% 64%);
   --mf-warning: hsl(44 96% 62%);
   --mf-shadow: 0 24px 80px hsl(220 60% 2% / 0.5), 0 8px 24px hsl(220 60% 2% / 0.34);
@@ -324,7 +323,6 @@
 .mf-quick-btn,
 .mf-daily-month-btn,
 .mf-link-btn,
-.mf-summary-tab,
 .mf-preset-btn,
 .mf-panel-toggle {
   transition: var(--mf-transition) !important;
@@ -398,7 +396,6 @@
 .mf-quick-btn:hover,
 .mf-daily-month-btn:hover:not(:disabled),
 .mf-link-btn:hover,
-.mf-summary-tab:hover,
 .mf-preset-btn:hover,
 .mf-panel-toggle:hover {
   transform: translateY(-2px) !important;
@@ -789,8 +786,7 @@
   flex-wrap: wrap !important;
 }
 
-.mf-inline-divider,
-.mf-footer-divider {
+.mf-inline-divider {
   width: 1px;
   height: 22px;
   background: var(--mf-border);
@@ -1230,87 +1226,6 @@
   transform: translate(20px, -50%) !important;
 }
 
-.mf-summary-area {
-  flex-shrink: 0 !important;
-}
-
-.mf-summary-container {
-  max-height: 310px !important;
-  overflow: hidden !important;
-  margin-top: 14px !important;
-  border: 1px solid var(--mf-border) !important;
-  border-radius: var(--mf-radius-md) !important;
-  background: var(--mf-section-bg) !important;
-  box-shadow: inset 0 1px 0 hsl(220 14% 96% / 0.06) !important;
-  animation: mf-slide-soft 0.22s ease-out both !important;
-}
-
-.mf-summary-tabs {
-  display: flex !important;
-  border-bottom: 1px solid var(--mf-border) !important;
-  background: var(--mf-bg-secondary) !important;
-}
-
-.mf-summary-tab {
-  flex: 1 !important;
-  min-height: 38px !important;
-  border: 0 !important;
-  border-bottom: 2px solid transparent !important;
-  background: transparent !important;
-  color: var(--mf-text-sub) !important;
-  font-size: var(--mf-text-xs) !important;
-  font-weight: 800 !important;
-  cursor: pointer !important;
-}
-
-.mf-summary-tab.active {
-  color: var(--mf-color-1) !important;
-  border-bottom-color: var(--mf-color-1) !important;
-  background: color-mix(in oklab, var(--mf-color-1), transparent 90%) !important;
-}
-
-.mf-summary-table {
-  width: 100% !important;
-  border-collapse: collapse !important;
-  color: var(--mf-text-main) !important;
-  font-size: var(--mf-text-xs) !important;
-}
-
-.mf-summary-table th,
-.mf-summary-table td {
-  padding: 9px 12px !important;
-  border-bottom: 1px solid var(--mf-border) !important;
-  text-align: right !important;
-  white-space: nowrap !important;
-  font-variant-numeric: tabular-nums !important;
-}
-
-.mf-summary-table th {
-  position: sticky !important;
-  top: 0 !important;
-  z-index: 1 !important;
-  background: var(--mf-bg-secondary) !important;
-  color: var(--mf-text-sub) !important;
-  font-weight: 800 !important;
-}
-
-.mf-summary-table th:first-child,
-.mf-summary-table td:first-child {
-  text-align: left !important;
-}
-
-.mf-summary-table tr:hover td {
-  background: var(--mf-bg-hover) !important;
-}
-
-.mf-summary-table .mf-positive {
-  color: var(--mf-positive) !important;
-}
-
-.mf-summary-table .mf-negative {
-  color: var(--mf-negative) !important;
-}
-
 .mf-status-container {
   margin-top: 24px !important;
 }
@@ -1582,7 +1497,6 @@
   .mf-quick-btn,
   .mf-daily-month-btn,
   .mf-link-btn,
-  .mf-summary-container,
   .mf-advanced-panel,
   .mf-toggle-slider,
   .mf-toggle-slider::before {

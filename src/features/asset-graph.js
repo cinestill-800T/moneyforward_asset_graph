@@ -9,7 +9,6 @@ let isDailyMode = false;
 let dailyModeYear = new Date().getFullYear();
 let dailyModeMonth = new Date().getMonth() + 1; // 1-indexed
 let dailyModeData = null;
-let verticalGridTouched = false;
 
 // 横方向ドラッグによる一時ズーム
 const GRAPH_ZOOM_DRAG_THRESHOLD_PX = 10;
@@ -120,7 +119,6 @@ export function showGraphModal(initialData = null) {
                         <button type="button" class="mf-quick-btn" data-period="5">5年</button>
                         <button type="button" class="mf-quick-btn active" data-period="10">10年</button>
                         <button type="button" class="mf-quick-btn" data-period="all">全期間</button>
-                        <button type="button" id="mf-prediction-btn" class="mf-quick-btn" data-period="predict" title="過去データから未来を予測">未来予測</button>
                     </div>
                     
                     <!-- Daily Mode Month Selector (hidden by default) -->
@@ -190,26 +188,11 @@ export function showGraphModal(initialData = null) {
                         <p>表示できるデータがありません。<br>条件を変更して「再取得・描画」を押してください。</p>
                     </div>
                 </div>
-                <!-- Summary Table Area -->
-                <div id="mf-summary-area" class="mf-summary-area" style="display:none;"></div>
             </div>
 
             <!-- Footer -->
             <div class="mf-modal-footer mf-graph-footer">
                 <div class="mf-footer-options">
-                    <label class="mf-check-label">
-                        <input type="checkbox" id="mf-chart-stack-check">
-                        積み上げ
-                    </label>
-                    <label class="mf-check-label">
-                        <input type="checkbox" id="mf-chart-diff-check">
-                        増減表示
-                    </label>
-                    <label class="mf-check-label">
-                        <input type="checkbox" id="mf-chart-vertical-grid-check">
-                        縦グリッド
-                    </label>
-                    <div class="mf-footer-divider"></div>
                     <label class="mf-check-label">
                         <input type="checkbox" id="mf-chart-ma-check">
                         移動平均
@@ -219,13 +202,6 @@ export function showGraphModal(initialData = null) {
                         <option value="6">6ヶ月</option>
                         <option value="12" selected>12ヶ月</option>
                     </select>
-                    <div class="mf-footer-divider"></div>
-                    <button class="mf-modal-btn mf-modal-btn-close mf-small-action" id="mf-toggle-summary">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/>
-                        </svg>
-                        サマリー
-                    </button>
                 </div>
                 <button class="mf-modal-btn mf-modal-btn-close mf-small-action" id="mf-download-csv">CSV保存</button>
                 <button class="mf-modal-btn mf-modal-btn-close mf-small-action" id="mf-copy-data">CSVコピー</button>
@@ -560,9 +536,8 @@ export function showGraphModal(initialData = null) {
         });
     });
 
-    // クイック期間ボタン（予測ボタン・日次ボタンを除外）
-    const quickPeriodBtns = document.querySelectorAll('.mf-quick-btn:not(#mf-prediction-btn):not(#mf-daily-btn)');
-    const predictionBtn = document.getElementById('mf-prediction-btn');
+    // クイック期間ボタン（日次ボタンを除外）
+    const quickPeriodBtns = document.querySelectorAll('.mf-quick-btn:not(#mf-daily-btn)');
 
     quickPeriodBtns.forEach(btn => {
         btn.addEventListener('click', () => {
@@ -571,9 +546,6 @@ export function showGraphModal(initialData = null) {
             quickPeriodBtns.forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
 
-            // 予測モードをオフに
-            predictionBtn.classList.remove('active');
-
             // モードをrelativeに設定
             document.querySelector('input[name="mf-mode"][value="relative"]').checked = true;
             optsYear.style.display = 'none';
@@ -581,19 +553,6 @@ export function showGraphModal(initialData = null) {
 
             updateGraph();
         });
-    });
-
-    // 未来予測ボタン：増減モードとは排他的
-    predictionBtn.addEventListener('click', () => {
-        clearGraphZoom(false);
-        predictionBtn.classList.toggle('active');
-
-        // 予測ONの場合は増減モードをOFFに
-        if (predictionBtn.classList.contains('active')) {
-            document.getElementById('mf-chart-diff-check').checked = false;
-        }
-
-        updateGraph();
     });
 
     // ==========================================
@@ -605,11 +564,6 @@ export function showGraphModal(initialData = null) {
     const extractionRow = document.getElementById('mf-extraction-row');
     const dailyYearSelect = document.getElementById('mf-daily-year');
     const dailyMonthBtns = document.querySelectorAll('.mf-daily-month-btn');
-    const verticalGridCheck = document.getElementById('mf-chart-vertical-grid-check');
-
-    if (verticalGridCheck) {
-        verticalGridCheck.checked = false;
-    }
 
     // 年セレクト生成
     const curYear = new Date().getFullYear();
@@ -665,13 +619,9 @@ export function showGraphModal(initialData = null) {
         dailyBtn.classList.add('active');
         periodGroup.style.display = 'none';
         dailyNav.style.display = 'flex';
-        predictionBtn.classList.remove('active');
         if (extractionRow) extractionRow.style.display = 'none';
         advPeriodToggle.style.display = 'none';
         advPeriodPanel.style.display = 'none';
-        if (verticalGridCheck && !verticalGridTouched) {
-            verticalGridCheck.checked = true;
-        }
         updateDailyButtons();
         loadDailyData();
     }
@@ -685,9 +635,6 @@ export function showGraphModal(initialData = null) {
         dailyNav.style.display = 'none';
         if (extractionRow) extractionRow.style.display = 'flex';
         advPeriodToggle.style.display = 'flex';
-        if (verticalGridCheck && !verticalGridTouched) {
-            verticalGridCheck.checked = false;
-        }
         updateGraph();
     }
 
@@ -746,14 +693,6 @@ export function showGraphModal(initialData = null) {
         updateGraph();
     });
 
-    if (verticalGridCheck) {
-        verticalGridCheck.addEventListener('change', () => {
-            verticalGridTouched = true;
-            clearGraphZoom(false);
-            updateGraph();
-        });
-    }
-
     const fetchBtn = document.getElementById('mf-modal-fetch');
     const statusMsg = document.getElementById('mf-status-msg');
 
@@ -796,49 +735,17 @@ export function showGraphModal(initialData = null) {
         }
     });
 
-    // グラフ更新トリガー
-    document.getElementById('mf-chart-stack-check').addEventListener('change', () => {
-        clearGraphZoom(false);
-        updateGraph();
-    });
-
-    // 増減モード：予測・移動平均とは排他的
-    const diffCheck = document.getElementById('mf-chart-diff-check');
-    diffCheck.addEventListener('change', () => {
-        clearGraphZoom(false);
-        if (diffCheck.checked) {
-            document.getElementById('mf-prediction-btn').classList.remove('active');
-            document.getElementById('mf-chart-ma-check').checked = false;
-            document.getElementById('mf-ma-period').disabled = true;
-        }
-        updateGraph();
-    });
-
     // 移動平均トグル
     const maCheck = document.getElementById('mf-chart-ma-check');
     const maPeriodSelect = document.getElementById('mf-ma-period');
     maCheck.addEventListener('change', () => {
         clearGraphZoom(false);
         maPeriodSelect.disabled = !maCheck.checked;
-        if (maCheck.checked) {
-            document.getElementById('mf-chart-diff-check').checked = false;
-        }
         updateGraph();
     });
     maPeriodSelect.addEventListener('change', () => {
         clearGraphZoom(false);
         updateGraph();
-    });
-
-    // サマリーテーブルトグル
-    document.getElementById('mf-toggle-summary').addEventListener('click', () => {
-        const area = document.getElementById('mf-summary-area');
-        if (area.style.display === 'none') {
-            area.style.display = 'block';
-            renderSummaryTable();
-        } else {
-            area.style.display = 'none';
-        }
     });
 
     document.getElementById('mf-copy-data').addEventListener('click', copyGraphData);
@@ -892,7 +799,6 @@ function resetGraphModalState() {
     dailyModeYear = now.getFullYear();
     dailyModeMonth = now.getMonth() + 1;
     dailyModeData = null;
-    verticalGridTouched = false;
 }
 
 function showGraphNotice(message, type = 'info') {
@@ -1010,26 +916,16 @@ export function updateGraph() {
         return;
     }
 
-    const headers = isDailyMode ? dailyModeData.headers : lastFetchedData.headers;
     const labels = isDailyMode
         ? rows.map(r => {
             const d = parseLocalDate(r[0]);
             return `${d.getMonth() + 1}/${d.getDate()}`;
         })
         : rows.map(r => r[0]);
-    const isStacked = document.getElementById('mf-chart-stack-check').checked;
-    const isDiff = document.getElementById('mf-chart-diff-check').checked;
-    const isPrediction = document.getElementById('mf-prediction-btn')?.classList.contains('active') || false;
     const isMA = document.getElementById('mf-chart-ma-check').checked;
     const maPeriod = parseInt(document.getElementById('mf-ma-period').value, 10);
 
-    drawChartCanvas(labels, headers, rows, isStacked, isDiff, isPrediction, isMA, maPeriod);
-
-    // サマリーテーブルが表示中なら更新
-    const summaryArea = document.getElementById('mf-summary-area');
-    if (summaryArea && summaryArea.style.display !== 'none') {
-        renderSummaryTable();
-    }
+    drawChartCanvas(labels, rows, isMA, maPeriod);
 }
 
 // ==========================================
@@ -1100,7 +996,7 @@ function calcMovingAverage(data, period) {
 // ==========================================
 // グラフ描画
 // ==========================================
-function drawChartCanvas(labels, headers, rows, isStacked, isDiff, isPrediction = false, isMA = false, maPeriod = 12) {
+function drawChartCanvas(labels, rows, isMA = false, maPeriod = 12) {
     if (globalChart) globalChart.destroy();
     const ctx = document.getElementById('mf-chart').getContext('2d');
 
@@ -1111,182 +1007,37 @@ function drawChartCanvas(labels, headers, rows, isStacked, isDiff, isPrediction 
     const haloColor = dark ? 'hsl(220 14% 8% / 0.84)' : 'hsl(220 36% 98% / 0.84)';
 
     const datasets = [];
-    const themeColors = [
-        currentTheme.color1,
-        currentTheme.color2,
-        currentTheme.color3,
-        currentTheme.color4
-    ];
+    const rgb = colorToRgbObj(currentTheme.color1);
+    const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+    gradient.addColorStop(0, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.4)`);
+    gradient.addColorStop(1, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.0)`);
 
-    // 予測用の変数
-    let allLabels = [...labels];
-    let predictionStartIndex = labels.length;
+    const actualData = rows.map(r => parseInt(r[1] || 0, 10));
 
-    if (isDiff) {
-        // --- 増減モード (Bar Chart) ---
-        const diffData = [];
-        const percentData = [];
-        diffData.push(0);
-        percentData.push(0);
+    datasets.push({
+        label: '資産合計',
+        data: actualData,
+        backgroundColor: gradient,
+        borderColor: currentTheme.color1,
+        borderWidth: 3,
+        fill: true,
+        pointRadius: rows.length > 50 ? 0 : 4,
+        pointHoverRadius: 6
+    });
 
-        for (let i = 1; i < rows.length; i++) {
-            const currentTotal = parseInt(rows[i][1] || 0, 10);
-            const prevTotal = parseInt(rows[i - 1][1] || 0, 10);
-            diffData.push(currentTotal - prevTotal);
-            const percent = prevTotal !== 0 ? ((currentTotal - prevTotal) / prevTotal) * 100 : 0;
-            percentData.push(percent);
-        }
-
-        const backgroundColors = diffData.map(val => val >= 0 ? currentTheme.color2 : 'hsl(356 82% 64%)');
-        const borderColors = diffData.map(val => val >= 0 ? currentTheme.color1 : 'hsl(356 74% 52%)');
-
+    if (isMA) {
+        const maData = calcMovingAverage(actualData, maPeriod);
         datasets.push({
-            label: '前回比増減',
-            data: diffData,
-            percentData: percentData,
-            backgroundColor: backgroundColors,
-            borderColor: borderColors,
-            borderWidth: 1,
-            borderRadius: 4,
+            label: `${maPeriod}ヶ月移動平均`,
+            data: maData,
+            backgroundColor: 'transparent',
+            borderColor: dark ? 'hsl(44 96% 62%)' : 'hsl(15 76% 58%)',
+            borderWidth: 2.5,
+            borderDash: [6, 3],
+            fill: false,
+            pointRadius: 0,
+            pointHoverRadius: 4
         });
-
-    } else if (isStacked) {
-        // --- 積み上げモード (Area Chart) ---
-        const extraColors = ['hsl(44 42% 62%)', 'hsl(22 28% 50%)', 'hsl(187 28% 50%)', 'hsl(38 42% 74%)'];
-        const palette = [...themeColors, ...extraColors];
-
-        for (let i = 2; i < headers.length; i++) {
-            if (headers[i] === '詳細') continue;
-
-            const baseColor = palette[(i - 2) % palette.length];
-            const rgb = colorToRgbObj(baseColor);
-            const gradient = ctx.createLinearGradient(0, 0, 0, 400);
-            gradient.addColorStop(0, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.8)`);
-            gradient.addColorStop(1, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.1)`);
-
-            const categoryData = rows.map(r => parseInt(r[i] || 0, 10));
-
-            datasets.push({
-                label: headers[i],
-                data: categoryData,
-                backgroundColor: gradient,
-                borderColor: baseColor,
-                borderWidth: 1,
-                fill: true,
-                pointRadius: rows.length > 50 ? 0 : 3
-            });
-        }
-
-        // 積み上げ + 移動平均
-        if (isMA) {
-            const totalData = rows.map(r => parseInt(r[1] || 0, 10));
-            const maData = calcMovingAverage(totalData, maPeriod);
-            datasets.push({
-                label: `${maPeriod}ヶ月移動平均 (合計)`,
-                data: maData,
-                backgroundColor: 'transparent',
-                borderColor: dark ? 'hsl(44 96% 62%)' : 'hsl(15 76% 58%)',
-                borderWidth: 2.5,
-                borderDash: [6, 3],
-                fill: false,
-                pointRadius: 0,
-                pointHoverRadius: 4,
-                order: -1 // 最前面に描画
-            });
-        }
-    } else {
-        // --- 通常モード (Line Chart) ---
-        const rgb = colorToRgbObj(currentTheme.color1);
-        const gradient = ctx.createLinearGradient(0, 0, 0, 400);
-        gradient.addColorStop(0, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.4)`);
-        gradient.addColorStop(1, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.0)`);
-
-        const actualData = rows.map(r => parseInt(r[1] || 0, 10));
-
-        datasets.push({
-            label: '資産合計',
-            data: actualData,
-            backgroundColor: gradient,
-            borderColor: currentTheme.color1,
-            borderWidth: 3,
-            fill: true,
-            pointRadius: rows.length > 50 ? 0 : 4,
-            pointHoverRadius: 6
-        });
-
-        // --- 移動平均線 ---
-        if (isMA) {
-            const maData = calcMovingAverage(actualData, maPeriod);
-            datasets.push({
-                label: `${maPeriod}ヶ月移動平均`,
-                data: maData,
-                backgroundColor: 'transparent',
-                borderColor: dark ? 'hsl(44 96% 62%)' : 'hsl(15 76% 58%)',
-                borderWidth: 2.5,
-                borderDash: [6, 3],
-                fill: false,
-                pointRadius: 0,
-                pointHoverRadius: 4
-            });
-        }
-
-        // --- 複数シナリオ予測 ---
-        if (isPrediction && rows.length >= 2) {
-            // CAGR計算（年平均成長率）
-            const firstDate = parseLocalDate(rows[0][0]);
-            const lastDate = parseLocalDate(rows[rows.length - 1][0]);
-            const firstVal = parseInt(rows[0][1] || 0, 10);
-            const lastVal = parseInt(rows[rows.length - 1][1] || 0, 10);
-
-            const yearsDiff = (lastDate - firstDate) / (1000 * 60 * 60 * 24 * 365.25);
-            const cagr = yearsDiff > 0 && firstVal > 0 ? Math.pow(lastVal / firstVal, 1 / yearsDiff) - 1 : 0;
-
-            // 5年分（60ヶ月）の予測データを生成
-            const predictionMonths = 60;
-
-            // 3シナリオ用のCAGR
-            const scenarios = [
-                { name: '楽観', factor: 1.5, color: 'hsl(156 72% 52%)', dashStyle: [6, 3] },
-                { name: '中立', factor: 1.0, color: 'hsl(44 96% 62%)', dashStyle: [8, 4] },
-                { name: '悲観', factor: 0.5, color: 'hsl(356 82% 64%)', dashStyle: [4, 4] }
-            ];
-
-            // 未来の日付ラベルを追加
-            for (let m = 1; m <= predictionMonths; m++) {
-                const futureDate = new Date(lastDate);
-                futureDate.setMonth(futureDate.getMonth() + m);
-                const dateStr = futureDate.toISOString().split('T')[0];
-                allLabels.push(dateStr);
-            }
-
-            scenarios.forEach(scenario => {
-                const scenarioCagr = cagr * scenario.factor;
-                const predictionData = new Array(actualData.length - 1).fill(null);
-                predictionData.push(lastVal); // 最後の実績値から開始
-
-                for (let m = 1; m <= predictionMonths; m++) {
-                    const monthlyGrowth = Math.pow(1 + scenarioCagr, m / 12);
-                    predictionData.push(Math.round(lastVal * monthlyGrowth));
-                }
-
-                const predictionRgb = colorToRgbObj(scenario.color);
-                const predictionGradient = ctx.createLinearGradient(0, 0, 0, 400);
-                predictionGradient.addColorStop(0, `rgba(${predictionRgb.r}, ${predictionRgb.g}, ${predictionRgb.b}, 0.1)`);
-                predictionGradient.addColorStop(1, `rgba(${predictionRgb.r}, ${predictionRgb.g}, ${predictionRgb.b}, 0.0)`);
-
-                datasets.push({
-                    label: `${scenario.name} (CAGR ${(scenarioCagr * 100).toFixed(1)}%)`,
-                    data: predictionData,
-                    backgroundColor: predictionGradient,
-                    borderColor: scenario.color,
-                    borderWidth: 2,
-                    borderDash: scenario.dashStyle,
-                    fill: true,
-                    pointRadius: 0,
-                    pointHoverRadius: 4
-                });
-            });
-        }
     }
 
     // データラベル表示プラグイン
@@ -1294,7 +1045,7 @@ function drawChartCanvas(labels, headers, rows, isStacked, isDiff, isPrediction 
         id: 'dataLabelPlugin',
         afterDatasetsDraw: (chart) => {
             const { ctx, data } = chart;
-            const MAX_LABELS = isDiff ? 12 : 20;
+            const MAX_LABELS = 20;
             const totalPoints = data.labels.length;
             const skipInterval = totalPoints <= MAX_LABELS ? 1 : Math.ceil(totalPoints / MAX_LABELS);
 
@@ -1318,38 +1069,15 @@ function drawChartCanvas(labels, headers, rows, isStacked, isDiff, isPrediction 
                     const value = dataset.data[index];
                     if (value === null || value === undefined) return;
 
-                    // 予測データセットの最初のポイント（実績との重複点）はスキップ
-                    if (dataset.label && (dataset.label.includes('楽観') || dataset.label.includes('中立') || dataset.label.includes('悲観')) && isFirstPoint) return;
-
-                    // 増減モードで0の場合は表示しない
-                    if (isDiff && value === 0) return;
-
                     let text = '';
                     const absVal = Math.abs(value);
                     if (absVal >= 100000000) text = (value / 100000000).toFixed(1) + '億';
                     else if (absVal >= 10000) text = (value / 10000).toFixed(0) + '万';
                     else text = value.toLocaleString();
 
-                    if (isDiff && value > 0) text = '+' + text;
-                    if (isDiff && dataset.percentData && dataset.percentData[index] !== undefined) {
-                        const pct = dataset.percentData[index];
-                        const pctText = pct >= 0 ? `+${pct.toFixed(1)}%` : `${pct.toFixed(1)}%`;
-                        text += ` (${pctText})`;
-                    }
-
                     const { x, y } = element.tooltipPosition();
                     const color = dataset.borderColor instanceof Array ? dataset.borderColor[index] : dataset.borderColor || textColor;
-
-                    let labelY;
-                    if (isDiff) {
-                        if (value >= 0) {
-                            labelY = element.y - 14;
-                        } else {
-                            labelY = element.base - 14;
-                        }
-                    } else {
-                        labelY = element.y - 14;
-                    }
+                    const labelY = element.y - 14;
 
                     // Halo Effect
                     ctx.save();
@@ -1369,14 +1097,13 @@ function drawChartCanvas(labels, headers, rows, isStacked, isDiff, isPrediction 
     };
 
     globalChart = new Chart(ctx, {
-        type: isDiff ? 'bar' : 'line',
-        data: { labels: allLabels, datasets },
+        type: 'line',
+        data: { labels, datasets },
         plugins: [dataLabelPlugin],
         options: {
             responsive: true,
             maintainAspectRatio: false,
             interaction: { mode: 'index', intersect: false },
-            stacked: isStacked,
             animation: {
                 duration: 1200,
                 easing: 'easeInOutQuart',
@@ -1396,28 +1123,15 @@ function drawChartCanvas(labels, headers, rows, isStacked, isDiff, isPrediction 
                 }
             },
             layout: {
-                padding: { top: 20, bottom: isDiff ? 20 : 0, right: 40 }
+                padding: { top: 20, bottom: 0, right: 40 }
             },
             plugins: {
                 title: {
                     display: true,
                     text: (() => {
-                        if (isDiff) {
-                            const firstVal = parseInt(rows[0][1] || 0, 10);
-                            const lastVal = parseInt(rows[rows.length - 1][1] || 0, 10);
-                            const totalDiff = lastVal - firstVal;
-                            const totalPercent = firstVal !== 0 ? ((lastVal - firstVal) / firstVal) * 100 : 0;
-                            const percentSign = totalPercent >= 0 ? '+' : '';
-                            const percentText = `${percentSign}${totalPercent.toFixed(1)}%`;
-                            const formattedTotal = new Intl.NumberFormat('ja-JP', { style: 'currency', currency: 'JPY' }).format(totalDiff);
-                            const sign = totalDiff > 0 ? '+' : '';
-                            const totalText = `期間合計: ${sign}${formattedTotal} (${percentText})`.replace('￥', '¥');
-                            return ['資産増減（前回比）', totalText];
-                        }
-                        if (isPrediction) return '資産推移（3シナリオ予測）';
                         if (isMA) return `資産推移（${maPeriod}ヶ月移動平均）`;
                         if (isDailyMode) return `資産推移 ─ ${dailyModeYear}年${dailyModeMonth}月（日次）`;
-                        return isStacked ? '資産推移（内訳）' : '資産推移（合計）';
+                        return '資産推移（合計）';
                     })(),
                     font: { size: 16, weight: 'bold' },
                     color: currentTheme.color1
@@ -1439,16 +1153,7 @@ function drawChartCanvas(labels, headers, rows, isStacked, isDiff, isPrediction 
                             if (context.parsed.y !== null) {
                                 const val = context.parsed.y;
                                 const formatted = new Intl.NumberFormat('ja-JP', { style: 'currency', currency: 'JPY' }).format(val);
-                                if (isDiff && val > 0) label += '+' + formatted.replace('￥', '');
-                                else label += formatted;
-
-                                if (isDiff && context.dataset.percentData) {
-                                    const pct = context.dataset.percentData[context.dataIndex];
-                                    if (pct !== undefined) {
-                                        const pctText = pct >= 0 ? `+${pct.toFixed(2)}%` : `${pct.toFixed(2)}%`;
-                                        label += ` (${pctText})`;
-                                    }
-                                }
+                                label += formatted;
                             }
                             return label;
                         }
@@ -1456,7 +1161,6 @@ function drawChartCanvas(labels, headers, rows, isStacked, isDiff, isPrediction 
                 },
                 legend: {
                     position: 'bottom',
-                    display: !isDiff,
                     labels: {
                         color: textColor,
                         usePointStyle: true,
@@ -1468,7 +1172,7 @@ function drawChartCanvas(labels, headers, rows, isStacked, isDiff, isPrediction 
             },
             scales: {
                 x: {
-                    grid: { display: document.getElementById('mf-chart-vertical-grid-check')?.checked || false },
+                    grid: { display: false },
                     ticks: {
                         color: textColor,
                         font: { size: isDailyMode ? 10 : 11 },
@@ -1478,7 +1182,6 @@ function drawChartCanvas(labels, headers, rows, isStacked, isDiff, isPrediction 
                     }
                 },
                 y: {
-                    stacked: isStacked && !isDiff,
                     grid: { color: gridColor },
                     ticks: {
                         color: textColor,
@@ -1489,8 +1192,6 @@ function drawChartCanvas(labels, headers, rows, isStacked, isDiff, isPrediction 
                             if (absVal >= 100000000) text = (value / 100000000).toFixed(1) + '億円';
                             else if (absVal >= 10000) text = (value / 10000).toFixed(0) + '万円';
                             else text = '¥' + value.toLocaleString();
-
-                            if (isDiff && value > 0) return '+' + text.replace('¥', '');
                             return text;
                         }
                     }
@@ -1498,184 +1199,6 @@ function drawChartCanvas(labels, headers, rows, isStacked, isDiff, isPrediction 
             }
         }
     });
-
-    // 増減モードと積み上げは排他的にする
-    if (isDiff) {
-        document.getElementById('mf-chart-stack-check').disabled = true;
-        document.getElementById('mf-chart-ma-check').disabled = true;
-    } else {
-        document.getElementById('mf-chart-stack-check').disabled = false;
-        document.getElementById('mf-chart-ma-check').disabled = false;
-    }
-}
-
-// ==========================================
-// サマリーテーブル
-// ==========================================
-function renderSummaryTable() {
-    const area = document.getElementById('mf-summary-area');
-    if (!area || !lastFetchedData) return;
-
-    const rows = getFilteredRows();
-    if (rows.length === 0) {
-        area.innerHTML = '<div style="padding:12px; text-align:center; color:var(--mf-text-sub); font-size:12px;">データがありません</div>';
-        return;
-    }
-
-    // 月次データを生成
-    const monthlyData = generateMonthlyData(rows);
-    const yearlyData = generateYearlyData(rows);
-
-    const isYearly = area.dataset.mode === 'yearly';
-
-    area.innerHTML = `
-        <div class="mf-summary-container">
-            <div class="mf-summary-tabs">
-                <button class="mf-summary-tab ${!isYearly ? 'active' : ''}" data-mode="monthly">月次</button>
-                <button class="mf-summary-tab ${isYearly ? 'active' : ''}" data-mode="yearly">年次</button>
-            </div>
-            <div id="mf-summary-table-body" style="max-height: 250px; overflow-y: auto;">
-                ${isYearly ? buildYearlyTable(yearlyData) : buildMonthlyTable(monthlyData)}
-            </div>
-        </div>
-    `;
-
-    // タブ切替イベント
-    area.querySelectorAll('.mf-summary-tab').forEach(tab => {
-        tab.addEventListener('click', (e) => {
-            area.dataset.mode = e.target.dataset.mode;
-            renderSummaryTable();
-        });
-    });
-}
-
-function generateMonthlyData(rows) {
-    // 各月の最終データを取得
-    const monthMap = new Map();
-    rows.forEach(r => {
-        const date = parseLocalDate(r[0]);
-        const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-        const existing = monthMap.get(key);
-        if (!existing || date > parseLocalDate(existing.raw[0])) {
-            monthMap.set(key, { key, total: parseInt(r[1] || 0, 10), raw: r });
-        }
-    });
-
-    const sorted = Array.from(monthMap.values()).sort((a, b) => b.key.localeCompare(a.key));
-    const result = [];
-
-    for (let i = 0; i < sorted.length; i++) {
-        const current = sorted[i];
-        const prev = sorted[i + 1]; // 前の月（時系列的には1つ前）
-        const diff = prev ? current.total - prev.total : 0;
-        const pct = prev && prev.total !== 0 ? ((current.total - prev.total) / prev.total) * 100 : 0;
-        result.push({
-            label: current.key,
-            total: current.total,
-            diff: diff,
-            pct: pct,
-            hasPrev: !!prev
-        });
-    }
-
-    return result;
-}
-
-function generateYearlyData(rows) {
-    // 各年の最終データを取得
-    const yearMap = new Map();
-    rows.forEach(r => {
-        const date = parseLocalDate(r[0]);
-        const year = date.getFullYear();
-        const existing = yearMap.get(year);
-        if (!existing || date > parseLocalDate(existing.raw[0])) {
-            yearMap.set(year, { year, total: parseInt(r[1] || 0, 10), raw: r });
-        }
-    });
-
-    // 各年の最初のデータも取得（年間増減用）
-    const yearStartMap = new Map();
-    rows.forEach(r => {
-        const date = parseLocalDate(r[0]);
-        const year = date.getFullYear();
-        const existing = yearStartMap.get(year);
-        if (!existing || date < parseLocalDate(existing[0])) {
-            yearStartMap.set(year, r);
-        }
-    });
-
-    const sorted = Array.from(yearMap.values()).sort((a, b) => b.year - a.year);
-    const result = [];
-
-    for (let i = 0; i < sorted.length; i++) {
-        const current = sorted[i];
-        const prev = sorted[i + 1];
-        const diff = prev ? current.total - prev.total : 0;
-        const pct = prev && prev.total !== 0 ? ((current.total - prev.total) / prev.total) * 100 : 0;
-        result.push({
-            label: String(current.year),
-            total: current.total,
-            diff: diff,
-            pct: pct,
-            hasPrev: !!prev
-        });
-    }
-
-    return result;
-}
-
-function formatCurrency(val) {
-    return new Intl.NumberFormat('ja-JP').format(val);
-}
-
-function buildMonthlyTable(data) {
-    if (data.length === 0) return '<div style="padding:12px; text-align:center; color:var(--mf-text-sub);">データなし</div>';
-    return `
-        <table class="mf-summary-table">
-            <thead><tr>
-                <th>月</th><th>資産合計</th><th>増減額</th><th>増減率</th>
-            </tr></thead>
-            <tbody>
-                ${data.map(d => `
-                    <tr>
-                        <td>${d.label}</td>
-                        <td>¥${formatCurrency(d.total)}</td>
-                        <td class="${d.diff >= 0 ? 'mf-positive' : 'mf-negative'}">
-                            ${d.hasPrev ? (d.diff >= 0 ? '+' : '') + '¥' + formatCurrency(d.diff) : '—'}
-                        </td>
-                        <td class="${d.pct >= 0 ? 'mf-positive' : 'mf-negative'}">
-                            ${d.hasPrev ? (d.pct >= 0 ? '+' : '') + d.pct.toFixed(1) + '%' : '—'}
-                        </td>
-                    </tr>
-                `).join('')}
-            </tbody>
-        </table>
-    `;
-}
-
-function buildYearlyTable(data) {
-    if (data.length === 0) return '<div style="padding:12px; text-align:center; color:var(--mf-text-sub);">データなし</div>';
-    return `
-        <table class="mf-summary-table">
-            <thead><tr>
-                <th>年</th><th>資産合計</th><th>年間増減</th><th>増減率</th>
-            </tr></thead>
-            <tbody>
-                ${data.map(d => `
-                    <tr>
-                        <td>${d.label}年</td>
-                        <td>¥${formatCurrency(d.total)}</td>
-                        <td class="${d.diff >= 0 ? 'mf-positive' : 'mf-negative'}">
-                            ${d.hasPrev ? (d.diff >= 0 ? '+' : '') + '¥' + formatCurrency(d.diff) : '—'}
-                        </td>
-                        <td class="${d.pct >= 0 ? 'mf-positive' : 'mf-negative'}">
-                            ${d.hasPrev ? (d.pct >= 0 ? '+' : '') + d.pct.toFixed(1) + '%' : '—'}
-                        </td>
-                    </tr>
-                `).join('')}
-            </tbody>
-        </table>
-    `;
 }
 
 // ==========================================

@@ -1,6 +1,6 @@
 # Chrome Web Store Listing - MoneyForward Asset Graph
 
-> Last Updated: 2026-06-12
+> Last Updated: 2026-08-09
 
 ## Store Listing
 
@@ -13,12 +13,12 @@ MoneyForward Asset Graph
 **Detailed Description**
 MoneyForward Asset Graph は、マネーフォワード ME の資産推移画面にグラフ表示とCSV保存機能を追加するChrome拡張機能です。
 
-資産総額の推移、資産カテゴリ別の内訳、前回からの増減をブラウザ上で確認できます。期間指定、年指定、月末抽出、日次/月次切り替え、移動平均、サマリー表示、未来予測表示、縦グリッド切り替え、横ドラッグによる一時ズームに対応しています。表示中のグラフデータはCSV保存、CSVコピー、画像コピーができます。
+資産総額の推移をブラウザ上で確認できます。期間指定、年指定、月末抽出、日次/月次切り替え、移動平均、横ドラッグによる一時ズームに対応しています。表示中のグラフデータはCSV保存、CSVコピー、画像コピーができます。
 
 使い方:
 1. マネーフォワード ME の資産推移画面を開きます。
 2. 画面上に追加される「グラフを表示」ボタンをクリックします。
-3. 表示期間、抽出条件、グラフ形式を選びます。
+3. 表示期間と抽出条件を選びます。
 4. 「再取得・描画」で最新データを取得してグラフを更新します。
 5. 必要に応じてCSV保存、CSVコピー、画像コピーを実行します。
 
@@ -110,7 +110,7 @@ TBD
 
 | Version | Date | Changes | Status |
 |---------|------|---------|--------|
-| 2.8.1 | 2026-06-12 | Rebuilt the Chrome Web Store package with a version greater than the published 2.8.0 release. Includes vertical grid toggle and horizontal drag zoom for graph ranges. | Draft |
+| 2.8.1 | 2026-08-09 | Removed stacked, difference, vertical-grid, summary, and forecast controls and implementation while retaining asset trend, moving average, export, theme, cache, and range zoom features. | Draft |
 | 2.8.0 | 2026-06-12 | Added vertical grid toggle and horizontal drag zoom for graph ranges. | Published |
 
 ## Review Notes
