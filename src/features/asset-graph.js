@@ -1,5 +1,5 @@
 import { currentTheme, isDarkMode } from '../core/config.js';
-import { fetchData, fetchMonthlyData, generateCSV, downloadCSV, formatDate, parseLocalDate } from '../api/client.js';
+import { fetchData, fetchMonthlyData, fetchYearData, generateCSV, downloadCSV, formatDate, parseLocalDate } from '../api/client.js';
 
 let globalChart = null;
 let lastFetchedData = null; // グラフモーダル内でのデータ保持
@@ -9,6 +9,14 @@ let isDailyMode = false;
 let dailyModeYear = new Date().getFullYear();
 let dailyModeMonth = new Date().getMonth() + 1; // 1-indexed
 let dailyModeData = null;
+let dailyComparisonData = null;
+let dailyLoadGeneration = 0;
+let isMonthlyMode = false;
+let monthlyModeYear = new Date().getFullYear();
+let monthlyModeData = null;
+let monthlyComparisonData = null;
+let monthlyLoadGeneration = 0;
+let rollingComparisonLoadGeneration = 0;
 
 // 横方向ドラッグによる一時ズーム
 const GRAPH_ZOOM_DRAG_THRESHOLD_PX = 10;
@@ -102,64 +110,54 @@ export function showGraphModal(initialData = null) {
                 </div>
             </div>
 
-            <!-- Controls Area (Simplified) -->
+            <!-- Controls Area -->
             <div class="mf-graph-controls">
-                
-                <!-- Row 1: Quick Period Buttons -->
+
+                <!-- Row 1: Display mode -->
                 <div class="mf-control-row">
-                    <div class="mf-control-label">期間</div>
-                    
-                    <!-- Daily Mode Button -->
-                    <button type="button" id="mf-daily-btn" class="mf-quick-btn mf-daily-trigger" title="月ごとの日別データを表示">日次</button>
-                    
-                    <!-- Quick Period Button Group -->
-                    <div class="mf-quick-period-group" id="mf-period-group">
-                        <button type="button" class="mf-quick-btn" data-period="1">1年</button>
-                        <button type="button" class="mf-quick-btn" data-period="3">3年</button>
-                        <button type="button" class="mf-quick-btn" data-period="5">5年</button>
-                        <button type="button" class="mf-quick-btn active" data-period="10">10年</button>
-                        <button type="button" class="mf-quick-btn" data-period="all">全期間</button>
+                    <div class="mf-control-label">表示方法</div>
+                    <div class="mf-display-mode-group" role="group" aria-label="表示方法">
+                        <button type="button" class="mf-display-mode-btn active" data-display-mode="quick" aria-controls="mf-quick-mode-panel" aria-pressed="true">クイック</button>
+                        <button type="button" id="mf-monthly-btn" class="mf-display-mode-btn" data-display-mode="monthly" aria-controls="mf-monthly-mode-panel" aria-pressed="false">月次</button>
+                        <button type="button" id="mf-daily-btn" class="mf-display-mode-btn" data-display-mode="daily" aria-controls="mf-daily-mode-panel" aria-pressed="false">日次</button>
                     </div>
-                    
-                    <!-- Daily Mode Month Selector (hidden by default) -->
-                    <div id="mf-daily-nav" class="mf-daily-nav" style="display: none;">
-                        <select id="mf-daily-year" class="mf-select-modern mf-compact-select"></select>
-                        <div class="mf-quick-period-group" id="mf-daily-month-group">
-                            ${Array.from({ length: 12 }, (_, i) => `<button type="button" class="mf-daily-month-btn" data-month="${i + 1}">${i + 1}月</button>`).join('')}
-                        </div>
-                    </div>
-                    
-                    <!-- Advanced Period Toggle -->
-                    <button type="button" id="mf-advanced-period-toggle" class="mf-link-btn" title="指定年・期間指定">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M19 9l-7 7-7-7"/>
-                        </svg>
-                        詳細期間
-                    </button>
                 </div>
-                
-                <!-- Advanced Period Options (Hidden by default) -->
-                <div id="mf-advanced-period-panel" class="mf-advanced-panel" style="display: none;">
-                    <div class="mf-advanced-grid">
-                        <label class="mf-radio-label"><input type="radio" name="mf-mode" value="relative" checked> クイック期間</label>
-                        <label class="mf-radio-label"><input type="radio" name="mf-mode" value="year"> 指定年</label>
-                        <label class="mf-radio-label"><input type="radio" name="mf-mode" value="range"> 期間指定</label>
-                        
-                        <div class="mf-inline-divider"></div>
-                        
-                        <div id="mf-mode-year-opts" class="mf-mode-opts mf-inline-options" style="display: none;">
-                            <select id="mf-select-year" class="mf-select mf-select-short"></select>
-                            <span>年のデータ</span>
+
+                <!-- Row 2: Contextual options -->
+                <div class="mf-control-row mf-mode-context-row">
+                    <div class="mf-control-label" id="mf-mode-context-label">期間</div>
+                    <div class="mf-mode-context">
+                        <div class="mf-mode-context-panel" id="mf-quick-mode-panel" data-mode-panel="quick">
+                            <div class="mf-quick-period-group" id="mf-period-group" role="group" aria-label="クイック期間">
+                                <button type="button" class="mf-quick-btn active" data-period="1" aria-pressed="true">1年</button>
+                                <button type="button" class="mf-quick-btn" data-period="3" aria-pressed="false">3年</button>
+                                <button type="button" class="mf-quick-btn" data-period="5" aria-pressed="false">5年</button>
+                                <button type="button" class="mf-quick-btn" data-period="10" aria-pressed="false">10年</button>
+                                <button type="button" class="mf-quick-btn" data-period="all" aria-pressed="false">全期間</button>
+                            </div>
                         </div>
-                        <div id="mf-mode-range-opts" class="mf-mode-opts mf-inline-options" style="display: none;">
-                            <input type="date" id="mf-input-start" class="mf-input-date">
-                            <span>〜</span>
-                            <input type="date" id="mf-input-end" class="mf-input-date">
+
+                        <div class="mf-mode-context-panel" id="mf-monthly-mode-panel" data-mode-panel="monthly" hidden>
+                            <div class="mf-mode-opts mf-inline-options">
+                                <label for="mf-monthly-year">対象年</label>
+                                <select id="mf-monthly-year" class="mf-select mf-select-short"></select>
+                                <span class="mf-filter-hint mf-monthly-mode-hint">選択年の1月〜12月から、抽出日ごとに表示します</span>
+                            </div>
+                        </div>
+
+                        <div class="mf-mode-context-panel" id="mf-daily-mode-panel" data-mode-panel="daily" hidden>
+                            <div id="mf-daily-nav" class="mf-daily-nav">
+                                <label for="mf-daily-year">対象年</label>
+                                <select id="mf-daily-year" class="mf-select-modern mf-compact-select"></select>
+                                <div class="mf-quick-period-group" id="mf-daily-month-group" role="group" aria-label="対象月">
+                                    ${Array.from({ length: 12 }, (_, i) => `<button type="button" class="mf-daily-month-btn" data-month="${i + 1}" aria-pressed="false">${i + 1}月</button>`).join('')}
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
-                
-                <!-- Row 2: Extraction (Simplified - day select only) -->
+
+                <!-- Row 3: Extraction -->
                 <div id="mf-extraction-row" class="mf-control-row">
                     <div class="mf-control-label">抽出</div>
                     
@@ -202,6 +200,10 @@ export function showGraphModal(initialData = null) {
                         <option value="6">6ヶ月</option>
                         <option value="12" selected>12ヶ月</option>
                     </select>
+                    <label class="mf-check-label" id="mf-year-compare-label" aria-disabled="true" title="クイック1年、月次、日次で前年と比較">
+                        <input type="checkbox" id="mf-chart-year-compare-check" disabled>
+                        <span>前年比較</span>
+                    </label>
                 </div>
                 <button class="mf-modal-btn mf-modal-btn-close mf-small-action" id="mf-download-csv">CSV保存</button>
                 <button class="mf-modal-btn mf-modal-btn-close mf-small-action" id="mf-copy-data">CSVコピー</button>
@@ -504,146 +506,440 @@ export function showGraphModal(initialData = null) {
         resetGraphModalState();
     });
 
-    // 年選択の生成 (現在年〜2000年)
-    const yearSelect = document.getElementById('mf-select-year');
-    const currentYear = new Date().getFullYear();
-    for (let y = currentYear; y >= 2000; y--) {
-        const opt = document.createElement('option');
-        opt.value = y;
-        opt.textContent = y;
-        yearSelect.appendChild(opt);
-    }
-
-    // モード切替（詳細期間パネル内）
-    const modeRadios = document.querySelectorAll('input[name="mf-mode"]');
-    const optsYear = document.getElementById('mf-mode-year-opts');
-    const optsRange = document.getElementById('mf-mode-range-opts');
-
-    modeRadios.forEach(radio => {
-        radio.addEventListener('change', (e) => {
-            const val = e.target.value;
-            clearGraphZoom(false);
-            optsYear.style.display = val === 'year' ? 'flex' : 'none';
-            optsRange.style.display = val === 'range' ? 'flex' : 'none';
-
-            // relative選択時はクイックボタンを有効化
-            if (val === 'relative') {
-                document.querySelectorAll('.mf-quick-btn:not(#mf-daily-btn)').forEach(btn => btn.disabled = false);
-            } else {
-                document.querySelectorAll('.mf-quick-btn:not(#mf-daily-btn)').forEach(btn => btn.disabled = true);
-            }
-            updateGraph();
-        });
-    });
-
-    // クイック期間ボタン（日次ボタンを除外）
-    const quickPeriodBtns = document.querySelectorAll('.mf-quick-btn:not(#mf-daily-btn)');
-
-    quickPeriodBtns.forEach(btn => {
-        btn.addEventListener('click', () => {
-            clearGraphZoom(false);
-            // 他のボタンの選択解除
-            quickPeriodBtns.forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-
-            // モードをrelativeに設定
-            document.querySelector('input[name="mf-mode"][value="relative"]').checked = true;
-            optsYear.style.display = 'none';
-            optsRange.style.display = 'none';
-
-            updateGraph();
-        });
-    });
+    // 表示方法と配下の条件
+    const displayModeBtns = document.querySelectorAll('[data-display-mode]');
+    const quickPeriodBtns = document.querySelectorAll('[data-period]');
+    const quickModePanel = document.getElementById('mf-quick-mode-panel');
+    const monthlyModePanel = document.getElementById('mf-monthly-mode-panel');
+    const dailyModePanel = document.getElementById('mf-daily-mode-panel');
+    const modeContextLabel = document.getElementById('mf-mode-context-label');
 
     // ==========================================
-    // 日次モード
+    // 月次・日次モード
     // ==========================================
-    const dailyBtn = document.getElementById('mf-daily-btn');
-    const dailyNav = document.getElementById('mf-daily-nav');
-    const periodGroup = document.getElementById('mf-period-group');
+    const monthlyYearSelect = document.getElementById('mf-monthly-year');
     const extractionRow = document.getElementById('mf-extraction-row');
     const dailyYearSelect = document.getElementById('mf-daily-year');
     const dailyMonthBtns = document.querySelectorAll('.mf-daily-month-btn');
+    const daySelect = document.getElementById('mf-select-day');
+    const yearCompareCheck = document.getElementById('mf-chart-year-compare-check');
+    const yearCompareLabel = document.getElementById('mf-year-compare-label');
+    const fetchBtn = document.getElementById('mf-modal-fetch');
+    let dailyDataLoading = false;
+    let monthlyDataLoading = false;
+    let rollingComparisonLoading = false;
+    let standardDataLoading = false;
 
     // 年セレクト生成
-    const curYear = new Date().getFullYear();
-    for (let y = curYear; y >= 2000; y--) {
-        const opt = document.createElement('option');
-        opt.value = y;
-        opt.textContent = `${y}年`;
-        dailyYearSelect.appendChild(opt);
+    const currentYear = new Date().getFullYear();
+    for (let y = currentYear; y >= 2000; y--) {
+        [monthlyYearSelect, dailyYearSelect].forEach(select => {
+            const opt = document.createElement('option');
+            opt.value = y;
+            opt.textContent = `${y}年`;
+            select.appendChild(opt);
+        });
     }
+    monthlyYearSelect.value = monthlyModeYear;
     dailyYearSelect.value = dailyModeYear;
 
-    function updateDailyButtons() {
+    function isRollingYearMode() {
+        if (isDailyMode || isMonthlyMode) return false;
+        const displayMode = document.querySelector('[data-display-mode].active')?.dataset.displayMode;
+        const activePeriod = document.querySelector('[data-period].active')?.dataset.period;
+        return displayMode === 'quick' && activePeriod === '1';
+    }
+
+    function setDisplayModeUI(mode) {
+        displayModeBtns.forEach(btn => {
+            const selected = btn.dataset.displayMode === mode;
+            btn.classList.toggle('active', selected);
+            btn.setAttribute('aria-pressed', String(selected));
+        });
+        quickModePanel.hidden = mode !== 'quick';
+        monthlyModePanel.hidden = mode !== 'monthly';
+        dailyModePanel.hidden = mode !== 'daily';
+        modeContextLabel.textContent = mode === 'quick' ? '期間' : mode === 'monthly' ? '月次条件' : '年月';
+        extractionRow.hidden = mode === 'daily';
+    }
+
+    function syncYearComparisonAvailability() {
+        const comparisonAvailable = isDailyMode || isMonthlyMode || isRollingYearMode();
+        if (!comparisonAvailable) {
+            yearCompareCheck.checked = false;
+            dailyComparisonData = null;
+            monthlyComparisonData = null;
+            rollingComparisonLoadGeneration++;
+        }
+        const comparisonDisabled = !comparisonAvailable || dailyDataLoading ||
+            monthlyDataLoading || rollingComparisonLoading || standardDataLoading;
+        yearCompareCheck.disabled = comparisonDisabled;
+        yearCompareLabel.setAttribute('aria-disabled', String(comparisonDisabled));
+    }
+
+    function updateModeControls() {
         const now = new Date();
         const nowYear = now.getFullYear();
         const nowMonth = now.getMonth() + 1;
 
+        const anyLoading = dailyDataLoading || monthlyDataLoading || rollingComparisonLoading || standardDataLoading;
+        displayModeBtns.forEach(btn => btn.disabled = anyLoading);
+        quickPeriodBtns.forEach(btn => btn.disabled = anyLoading);
+        monthlyYearSelect.disabled = monthlyDataLoading;
+        dailyYearSelect.disabled = dailyDataLoading;
+        daySelect.disabled = anyLoading;
+        fetchBtn.disabled = anyLoading;
         dailyMonthBtns.forEach(btn => {
             const m = parseInt(btn.dataset.month, 10);
-            btn.classList.toggle('active', m === dailyModeMonth);
+            const selected = m === dailyModeMonth;
+            btn.classList.toggle('active', selected);
+            btn.setAttribute('aria-pressed', String(selected));
             // 未来の月は無効化
-            btn.disabled = (dailyModeYear === nowYear && m > nowMonth) || (dailyModeYear > nowYear);
+            btn.disabled = anyLoading ||
+                (dailyModeYear === nowYear && m > nowMonth) ||
+                (dailyModeYear > nowYear);
         });
+
+        syncYearComparisonAvailability();
+    }
+
+    function hasRollingYearComparisonCoverage() {
+        if (!lastFetchedData?.rows?.length) return false;
+        const currentRows = getFilteredRows();
+        if (currentRows.length === 0) return false;
+
+        const currentDates = currentRows
+            .map(row => parseLocalDate(row[0]))
+            .filter(date => !isNaN(date.getTime()));
+        const sourceDates = lastFetchedData.rows
+            .map(row => parseLocalDate(row[0]))
+            .filter(date => !isNaN(date.getTime()));
+        if (currentDates.length === 0 || sourceDates.length === 0) return false;
+
+        const earliestCurrent = new Date(Math.min(...currentDates.map(date => date.getTime())));
+        const requiredStart = getPreviousYearDate(earliestCurrent);
+        const earliestSource = Math.min(...sourceDates.map(date => date.getTime()));
+        return Boolean(requiredStart) && earliestSource <= requiredStart.getTime();
+    }
+
+    async function loadRollingYearComparisonData() {
+        if (!isRollingYearMode() || rollingComparisonLoading) return;
+        if (hasRollingYearComparisonCoverage()) {
+            updateGraph();
+            return;
+        }
+
+        const loading = document.getElementById('mf-modal-loading');
+        const progress = document.getElementById('mf-modal-progress');
+        const requestGeneration = ++rollingComparisonLoadGeneration;
+        rollingComparisonLoading = true;
+        updateModeControls();
+        loading.style.display = 'flex';
+        progress.style.width = '10%';
+        statusMsg.textContent = '';
+
+        try {
+            const data = await fetchData(2, (pct) => {
+                progress.style.width = `${pct}%`;
+            }, { additionalMonths: 1 });
+            const requestIsCurrent = requestGeneration === rollingComparisonLoadGeneration &&
+                isRollingYearMode() && yearCompareCheck.checked && modal.isConnected;
+            if (!requestIsCurrent) return;
+
+            if (data?.rows?.length) {
+                lastFetchedData = data;
+                if (hasRollingYearComparisonCoverage()) {
+                    updateGraph();
+                } else {
+                    yearCompareCheck.checked = false;
+                    updateGraph();
+                    showGraphNotice('前年同期間の境界データを取得できませんでした', 'error');
+                }
+            } else {
+                yearCompareCheck.checked = false;
+                updateGraph();
+                showGraphNotice('前年同期間のデータを取得できませんでした', 'error');
+            }
+        } catch (e) {
+            console.error(e);
+            yearCompareCheck.checked = false;
+            updateGraph();
+            showGraphNotice('前年比較データの取得に失敗しました', 'error');
+        } finally {
+            rollingComparisonLoading = false;
+            loading.style.display = 'none';
+            updateModeControls();
+        }
+    }
+
+    async function loadMonthlyYearData() {
+        const loading = document.getElementById('mf-modal-loading');
+        const progress = document.getElementById('mf-modal-progress');
+        const requestGeneration = ++monthlyLoadGeneration;
+        const targetYear = monthlyModeYear;
+        const comparisonRequested = yearCompareCheck.checked;
+        monthlyDataLoading = true;
+        monthlyModeData = null;
+        monthlyComparisonData = null;
+        updateModeControls();
+        loading.style.display = 'flex';
+        progress.style.width = '5%';
+        statusMsg.textContent = '';
+
+        try {
+            const data = await fetchYearData(targetYear, pct => {
+                progress.style.width = `${Math.round(pct * (comparisonRequested ? 0.6 : 1))}%`;
+            });
+            const requestIsCurrent = requestGeneration === monthlyLoadGeneration &&
+                isMonthlyMode && monthlyModeYear === targetYear && modal.isConnected;
+            if (!requestIsCurrent) return;
+
+            if (!data?.rows?.length) {
+                yearCompareCheck.checked = false;
+                statusMsg.textContent = `${targetYear}年のデータがありません`;
+                if (globalChart) {
+                    globalChart.destroy();
+                    globalChart = null;
+                }
+                document.getElementById('mf-no-data-msg').style.display = 'block';
+                return;
+            }
+
+            monthlyModeData = data;
+            if (comparisonRequested) {
+                const comparison = await fetchYearData(targetYear - 1, pct => {
+                    progress.style.width = `${60 + Math.round(pct * 0.4)}%`;
+                });
+                const comparisonIsCurrent = requestGeneration === monthlyLoadGeneration &&
+                    isMonthlyMode && monthlyModeYear === targetYear && modal.isConnected;
+                if (!comparisonIsCurrent) return;
+                if (comparison?.rows?.length) {
+                    monthlyComparisonData = comparison;
+                } else {
+                    yearCompareCheck.checked = false;
+                }
+            }
+
+            updateGraph();
+            if (comparisonRequested && !monthlyComparisonData) {
+                showGraphNotice(`${targetYear - 1}年の比較データがありません`);
+            }
+        } catch (e) {
+            console.error(e);
+            monthlyComparisonData = null;
+            yearCompareCheck.checked = false;
+            showGraphNotice('月次データの取得に失敗しました', 'error');
+        } finally {
+            monthlyDataLoading = false;
+            loading.style.display = 'none';
+            updateModeControls();
+        }
+    }
+
+    async function loadMonthlyComparisonData() {
+        if (!isMonthlyMode || !monthlyModeData || monthlyDataLoading) return;
+
+        const loading = document.getElementById('mf-modal-loading');
+        const progress = document.getElementById('mf-modal-progress');
+        const requestGeneration = ++monthlyLoadGeneration;
+        const targetYear = monthlyModeYear;
+        monthlyDataLoading = true;
+        monthlyComparisonData = null;
+        updateModeControls();
+        loading.style.display = 'flex';
+        progress.style.width = '10%';
+
+        try {
+            const comparison = await fetchYearData(targetYear - 1, pct => {
+                progress.style.width = `${pct}%`;
+            });
+            const requestIsCurrent = requestGeneration === monthlyLoadGeneration &&
+                isMonthlyMode && monthlyModeYear === targetYear && modal.isConnected;
+            if (!requestIsCurrent) return;
+            if (comparison?.rows?.length) {
+                monthlyComparisonData = comparison;
+            } else {
+                yearCompareCheck.checked = false;
+            }
+            updateGraph();
+            if (!monthlyComparisonData) {
+                showGraphNotice(`${targetYear - 1}年の比較データがありません`);
+            }
+        } catch (e) {
+            console.error(e);
+            monthlyComparisonData = null;
+            yearCompareCheck.checked = false;
+            updateGraph();
+            showGraphNotice('前年比較データの取得に失敗しました', 'error');
+        } finally {
+            monthlyDataLoading = false;
+            loading.style.display = 'none';
+            updateModeControls();
+        }
     }
 
     async function loadDailyData() {
         const loading = document.getElementById('mf-modal-loading');
         const progress = document.getElementById('mf-modal-progress');
+        const requestGeneration = ++dailyLoadGeneration;
+        const targetYear = dailyModeYear;
+        const targetMonth = dailyModeMonth;
+        const comparisonRequested = yearCompareCheck.checked;
+        dailyDataLoading = true;
+        dailyComparisonData = null;
+        updateModeControls();
         loading.style.display = 'flex';
-        progress.style.width = '50%';
+        progress.style.width = '25%';
         statusMsg.textContent = '';
 
         try {
-            const data = await fetchMonthlyData(dailyModeYear, dailyModeMonth);
+            const data = await fetchMonthlyData(targetYear, targetMonth);
+            if (requestGeneration !== dailyLoadGeneration || !isDailyMode || !modal.isConnected) return;
             if (data && data.rows.length > 0) {
                 dailyModeData = data;
+                progress.style.width = '60%';
+
+                if (comparisonRequested) {
+                    const comparison = await fetchMonthlyData(targetYear - 1, targetMonth);
+                    if (requestGeneration !== dailyLoadGeneration || !isDailyMode || !modal.isConnected) return;
+                    if (comparison && comparison.rows.length > 0) {
+                        dailyComparisonData = comparison;
+                    } else {
+                        yearCompareCheck.checked = false;
+                    }
+                    progress.style.width = '90%';
+                }
+
                 updateGraph();
+                if (comparisonRequested && !dailyComparisonData) {
+                    showGraphNotice(`${targetYear - 1}年${targetMonth}月の比較データがありません`);
+                }
             } else {
                 statusMsg.textContent = 'この月のデータがありません';
                 dailyModeData = null;
+                dailyComparisonData = null;
+                if (globalChart) {
+                    globalChart.destroy();
+                    globalChart = null;
+                }
                 document.getElementById('mf-no-data-msg').style.display = 'block';
             }
         } catch (e) {
             console.error(e);
             statusMsg.textContent = 'エラーが発生しました';
+            dailyComparisonData = null;
         } finally {
+            dailyDataLoading = false;
             loading.style.display = 'none';
+            updateModeControls();
         }
     }
 
-    function enterDailyMode() {
-        isDailyMode = true;
-        clearGraphZoom(false);
-        dailyBtn.classList.add('active');
-        periodGroup.style.display = 'none';
-        dailyNav.style.display = 'flex';
-        if (extractionRow) extractionRow.style.display = 'none';
-        advPeriodToggle.style.display = 'none';
-        advPeriodPanel.style.display = 'none';
-        updateDailyButtons();
-        loadDailyData();
+    async function loadDailyComparisonData() {
+        if (!isDailyMode || !dailyModeData || dailyDataLoading) return;
+
+        const loading = document.getElementById('mf-modal-loading');
+        const progress = document.getElementById('mf-modal-progress');
+        const requestGeneration = ++dailyLoadGeneration;
+        const targetYear = dailyModeYear;
+        const targetMonth = dailyModeMonth;
+        dailyDataLoading = true;
+        dailyComparisonData = null;
+        updateModeControls();
+        loading.style.display = 'flex';
+        progress.style.width = '50%';
+
+        try {
+            const comparison = await fetchMonthlyData(targetYear - 1, targetMonth);
+            if (requestGeneration !== dailyLoadGeneration || !isDailyMode || !modal.isConnected) return;
+            if (comparison && comparison.rows.length > 0) {
+                dailyComparisonData = comparison;
+            } else {
+                yearCompareCheck.checked = false;
+            }
+            updateGraph();
+            if (!dailyComparisonData) {
+                showGraphNotice(`${targetYear - 1}年${targetMonth}月の比較データがありません`);
+            }
+        } catch (e) {
+            console.error(e);
+            dailyComparisonData = null;
+            yearCompareCheck.checked = false;
+            updateGraph();
+            showGraphNotice('前年比較データの取得に失敗しました', 'error');
+        } finally {
+            dailyDataLoading = false;
+            loading.style.display = 'none';
+            updateModeControls();
+        }
     }
 
-    function exitDailyMode() {
-        isDailyMode = false;
+    function activateDisplayMode(mode) {
+        dailyLoadGeneration++;
+        monthlyLoadGeneration++;
+        rollingComparisonLoadGeneration++;
         clearGraphZoom(false);
+        isDailyMode = mode === 'daily';
+        isMonthlyMode = mode === 'monthly';
         dailyModeData = null;
-        dailyBtn.classList.remove('active');
-        periodGroup.style.display = 'flex';
-        dailyNav.style.display = 'none';
-        if (extractionRow) extractionRow.style.display = 'flex';
-        advPeriodToggle.style.display = 'flex';
-        updateGraph();
+        dailyComparisonData = null;
+        monthlyModeData = null;
+        monthlyComparisonData = null;
+        statusMsg.textContent = '';
+        setDisplayModeUI(mode);
+        updateModeControls();
+        if (globalChart) {
+            globalChart.destroy();
+            globalChart = null;
+        }
+
+        if (isDailyMode) {
+            loadDailyData();
+            return;
+        }
+        if (isMonthlyMode) {
+            loadMonthlyYearData();
+            return;
+        }
+        if (yearCompareCheck.checked && isRollingYearMode()) {
+            loadRollingYearComparisonData();
+        } else if (lastFetchedData) {
+            updateGraph();
+        } else {
+            document.getElementById('mf-no-data-msg').style.display = 'block';
+        }
     }
 
-    dailyBtn.addEventListener('click', () => {
-        if (isDailyMode) {
-            exitDailyMode();
-        } else {
-            enterDailyMode();
-        }
+    displayModeBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const nextMode = btn.dataset.displayMode;
+            const currentMode = document.querySelector('[data-display-mode].active')?.dataset.displayMode;
+            if (nextMode === currentMode) return;
+            activateDisplayMode(nextMode);
+        });
+    });
+
+    quickPeriodBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            clearGraphZoom(false);
+            quickPeriodBtns.forEach(periodBtn => {
+                const selected = periodBtn === btn;
+                periodBtn.classList.toggle('active', selected);
+                periodBtn.setAttribute('aria-pressed', String(selected));
+            });
+            syncYearComparisonAvailability();
+            updateGraph();
+        });
+    });
+
+    setDisplayModeUI('quick');
+
+    monthlyYearSelect.addEventListener('change', () => {
+        clearGraphZoom(false);
+        monthlyModeYear = Number.parseInt(monthlyYearSelect.value, 10);
+        monthlyModeData = null;
+        monthlyComparisonData = null;
+        loadMonthlyYearData();
     });
 
     // 月ボタンクリック
@@ -651,7 +947,8 @@ export function showGraphModal(initialData = null) {
         btn.addEventListener('click', () => {
             clearGraphZoom(false);
             dailyModeMonth = parseInt(btn.dataset.month, 10);
-            updateDailyButtons();
+            dailyComparisonData = null;
+            updateModeControls();
             loadDailyData();
         });
     });
@@ -660,69 +957,66 @@ export function showGraphModal(initialData = null) {
     dailyYearSelect.addEventListener('change', () => {
         clearGraphZoom(false);
         dailyModeYear = parseInt(dailyYearSelect.value, 10);
+        dailyComparisonData = null;
         // 年が変わったら未来月チェック
         const now = new Date();
         if (dailyModeYear === now.getFullYear() && dailyModeMonth > now.getMonth() + 1) {
             dailyModeMonth = now.getMonth() + 1;
         }
-        updateDailyButtons();
+        updateModeControls();
         loadDailyData();
     });
 
-    // クイック期間ボタンクリック時は日次モードを解除
-    quickPeriodBtns.forEach(btn => {
-        btn.addEventListener('click', () => {
-            if (isDailyMode) exitDailyMode();
-        });
-    });
-
-    // 詳細期間パネルトグル
-    const advPeriodToggle = document.getElementById('mf-advanced-period-toggle');
-    const advPeriodPanel = document.getElementById('mf-advanced-period-panel');
-    advPeriodToggle.addEventListener('click', () => {
-        clearGraphZoom(true);
-        const isOpen = advPeriodPanel.style.display !== 'none';
-        advPeriodPanel.style.display = isOpen ? 'none' : 'block';
-        advPeriodToggle.classList.toggle('active', !isOpen);
-    });
-
     // 日付選択の変更でグラフ更新
-    const daySelect = document.getElementById('mf-select-day');
     daySelect.addEventListener('change', () => {
         clearGraphZoom(false);
         updateGraph();
     });
 
-    const fetchBtn = document.getElementById('mf-modal-fetch');
     const statusMsg = document.getElementById('mf-status-msg');
 
     fetchBtn.addEventListener('click', async () => {
         clearGraphZoom(false);
-        const mode = document.querySelector('input[name="mf-mode"]:checked').value;
+        if (isDailyMode) {
+            await loadDailyData();
+            return;
+        }
+        if (isMonthlyMode) {
+            await loadMonthlyYearData();
+            return;
+        }
         const loading = document.getElementById('mf-modal-loading');
         const progress = document.getElementById('mf-modal-progress');
 
+        standardDataLoading = true;
+        updateModeControls();
         loading.style.display = 'flex';
-        fetchBtn.disabled = true;
         statusMsg.textContent = '';
 
-        let yearsToFetch = '10'; // default
+        let yearsToFetch = '1'; // default
 
-        if (mode === 'relative') {
-            const activeBtn = document.querySelector('.mf-quick-btn.active');
-            yearsToFetch = activeBtn ? activeBtn.dataset.period : '10';
-        } else {
-            yearsToFetch = 'all';
+        let includeComparisonBoundary = false;
+        const activeBtn = document.querySelector('[data-period].active');
+        yearsToFetch = activeBtn ? activeBtn.dataset.period : '1';
+        if (yearsToFetch === '1' && yearCompareCheck.checked) {
+            yearsToFetch = '2';
+            includeComparisonBoundary = true;
         }
 
         try {
             const data = await fetchData(yearsToFetch, (pct) => {
                 progress.style.width = `${pct}%`;
-            });
+            }, { additionalMonths: includeComparisonBoundary ? 1 : 0 });
 
             if (data) {
                 lastFetchedData = data;
-                updateGraph();
+                if (isRollingYearMode() && yearCompareCheck.checked && !hasRollingYearComparisonCoverage()) {
+                    yearCompareCheck.checked = false;
+                    updateGraph();
+                    showGraphNotice('前年同期間の境界データを取得できませんでした', 'error');
+                } else {
+                    updateGraph();
+                }
             } else {
                 statusMsg.textContent = 'データ取得に失敗しました';
             }
@@ -730,8 +1024,9 @@ export function showGraphModal(initialData = null) {
             console.error(e);
             statusMsg.textContent = 'エラーが発生しました';
         } finally {
+            standardDataLoading = false;
             loading.style.display = 'none';
-            fetchBtn.disabled = false;
+            updateModeControls();
         }
     });
 
@@ -748,6 +1043,28 @@ export function showGraphModal(initialData = null) {
         updateGraph();
     });
 
+    yearCompareCheck.addEventListener('change', async () => {
+        clearGraphZoom(false);
+        if (!isDailyMode && !isMonthlyMode && !isRollingYearMode()) {
+            yearCompareCheck.checked = false;
+            return;
+        }
+        if (!yearCompareCheck.checked) {
+            rollingComparisonLoadGeneration++;
+            dailyComparisonData = null;
+            monthlyComparisonData = null;
+            updateGraph();
+            return;
+        }
+        if (isDailyMode) {
+            await loadDailyComparisonData();
+        } else if (isMonthlyMode) {
+            await loadMonthlyComparisonData();
+        } else {
+            await loadRollingYearComparisonData();
+        }
+    });
+
     document.getElementById('mf-copy-data').addEventListener('click', copyGraphData);
     document.getElementById('mf-copy-image').addEventListener('click', copyGraphImage);
     zoomResetBtn?.addEventListener('click', () => {
@@ -762,7 +1079,9 @@ export function showGraphModal(initialData = null) {
     document.addEventListener('keydown', graphModalKeydownHandler);
 
     document.getElementById('mf-download-csv').addEventListener('click', () => {
-        const currentData = isDailyMode ? dailyModeData : lastFetchedData;
+        const currentData = isDailyMode
+            ? dailyModeData
+            : isMonthlyMode ? monthlyModeData : lastFetchedData;
         if (!globalChart || !currentData) return;
         const filteredRows = getFilteredRows();
         if (!filteredRows || filteredRows.length === 0) {
@@ -780,14 +1099,15 @@ export function showGraphModal(initialData = null) {
         document.getElementById('mf-no-data-msg').style.display = 'block';
     }
 
+    updateModeControls();
     initializeGraphZoomInteractions();
     syncZoomControls();
 }
 
-// ==========================================
-// フィルタリングロジック
-// ==========================================
 function resetGraphModalState() {
+    dailyLoadGeneration++;
+    monthlyLoadGeneration++;
+    rollingComparisonLoadGeneration++;
     resetGraphZoomState();
     clearGraphZoomForActiveModal = null;
     if (globalChart) {
@@ -799,6 +1119,11 @@ function resetGraphModalState() {
     dailyModeYear = now.getFullYear();
     dailyModeMonth = now.getMonth() + 1;
     dailyModeData = null;
+    dailyComparisonData = null;
+    isMonthlyMode = false;
+    monthlyModeYear = now.getFullYear();
+    monthlyModeData = null;
+    monthlyComparisonData = null;
 }
 
 function showGraphNotice(message, type = 'info') {
@@ -814,22 +1139,69 @@ function showGraphNotice(message, type = 'info') {
     }
 }
 
+// ==========================================
+// フィルタリングロジック
+// ==========================================
+function filterEntriesBySelectedDay(entries) {
+    const daySelectVal = document.getElementById('mf-select-day').value;
+
+    if (daySelectVal === 'last') {
+        const monthMap = new Map();
+        entries.forEach(entry => {
+            const key = `${entry.date.getFullYear()}-${entry.date.getMonth()}`;
+            const existing = monthMap.get(key);
+            if (!existing || entry.date > existing.date) {
+                monthMap.set(key, entry);
+            }
+        });
+        return Array.from(monthMap.values());
+    }
+    if (daySelectVal !== '') {
+        const targetDay = Number.parseInt(daySelectVal, 10);
+        return entries.filter(entry => entry.date.getDate() === targetDay);
+    }
+    return entries;
+}
+
+function getYearRowsByExtraction(data, year) {
+    if (!data?.rows?.length) return [];
+    const entries = data.rows.map(raw => ({
+        date: parseLocalDate(raw[0]),
+        raw
+    })).filter(entry => !Number.isNaN(entry.date.getTime()) && entry.date.getFullYear() === year);
+
+    return filterEntriesBySelectedDay(entries)
+        .sort((a, b) => a.date - b.date)
+        .map(entry => entry.raw);
+}
+
 function getFilteredRows() {
     // 日次モードの場合
     if (isDailyMode && dailyModeData) {
-        const rows = dailyModeData.rows.map(r => ({
-            date: parseLocalDate(r[0]),
-            raw: r
-        })).filter(item => !isNaN(item.date.getTime()));
-        rows.sort((a, b) => a.date - b.date);
-        const statusMsg = document.getElementById('mf-status-msg');
-        if (statusMsg) statusMsg.textContent = `${dailyModeYear}年${dailyModeMonth}月 日次: ${rows.length}件`;
-        return rows.map(r => r.raw);
+        const rows = getSortedDailyRows(dailyModeData);
+        const comparisonEnabled = document.getElementById('mf-chart-year-compare-check')?.checked && dailyComparisonData;
+        const comparisonRows = comparisonEnabled ? getSortedDailyRows(dailyComparisonData) : [];
+        const status = comparisonEnabled
+            ? `${dailyModeYear}年${dailyModeMonth}月: ${rows.length}件 / ${dailyModeYear - 1}年同月: ${comparisonRows.length}件`
+            : `${dailyModeYear}年${dailyModeMonth}月 日次: ${rows.length}件`;
+        showGraphNotice(status);
+        return rows;
+    }
+
+    if (isMonthlyMode && monthlyModeData) {
+        const rows = getYearRowsByExtraction(monthlyModeData, monthlyModeYear);
+        const comparisonEnabled = document.getElementById('mf-chart-year-compare-check')?.checked && monthlyComparisonData;
+        const comparisonRows = comparisonEnabled
+            ? getYearRowsByExtraction(monthlyComparisonData, monthlyModeYear - 1)
+            : [];
+        const status = comparisonEnabled
+            ? `${monthlyModeYear}年: ${rows.length}件 / ${monthlyModeYear - 1}年: ${comparisonRows.length}件`
+            : `${monthlyModeYear}年 月次: ${rows.length}件`;
+        showGraphNotice(status);
+        return rows;
     }
 
     if (!lastFetchedData) return [];
-
-    const mode = document.querySelector('input[name="mf-mode"]:checked').value;
 
     // 1. 全データを日付オブジェクト付きで用意
     let rows = lastFetchedData.rows.map(r => ({
@@ -837,54 +1209,18 @@ function getFilteredRows() {
         raw: r
     })).filter(item => !isNaN(item.date.getTime()));
 
-    // 2. モードによる期間フィルタ
-    if (mode === 'relative') {
-        const activeBtn = document.querySelector('.mf-quick-btn.active');
-        const rangeVal = activeBtn ? activeBtn.dataset.period : '10';
-        if (rangeVal !== 'all') {
-            const years = parseInt(rangeVal, 10);
-            const cutoffDate = new Date();
-            cutoffDate.setFullYear(cutoffDate.getFullYear() - years);
-            rows = rows.filter(r => r.date >= cutoffDate);
-        }
-    } else if (mode === 'year') {
-        const targetYear = parseInt(document.getElementById('mf-select-year').value, 10);
-        if (!isNaN(targetYear)) {
-            rows = rows.filter(r => r.date.getFullYear() === targetYear);
-        }
-    } else if (mode === 'range') {
-        const startStr = document.getElementById('mf-input-start').value;
-        const endStr = document.getElementById('mf-input-end').value;
-        if (startStr) {
-            const startDate = new Date(startStr);
-            rows = rows.filter(r => r.date >= startDate);
-        }
-        if (endStr) {
-            const endDate = new Date(endStr);
-            rows = rows.filter(r => r.date <= endDate);
-        }
+    // 2. クイック期間フィルタ
+    const activeBtn = document.querySelector('[data-period].active');
+    const rangeVal = activeBtn ? activeBtn.dataset.period : '1';
+    if (rangeVal !== 'all') {
+        const years = parseInt(rangeVal, 10);
+        const cutoffDate = new Date();
+        cutoffDate.setFullYear(cutoffDate.getFullYear() - years);
+        rows = rows.filter(r => r.date >= cutoffDate);
     }
 
-    // 3. 抽出フィルタ (Simplified: day select only)
-    const daySelectVal = document.getElementById('mf-select-day').value;
-
-    if (daySelectVal === 'last') {
-        // 月末: 各月の最終データを抽出
-        const monthMap = new Map();
-        rows.forEach(r => {
-            const key = `${r.date.getFullYear()}-${r.date.getMonth()}`;
-            const existing = monthMap.get(key);
-            if (!existing || r.date > existing.date) {
-                monthMap.set(key, r);
-            }
-        });
-        rows = Array.from(monthMap.values());
-    } else if (daySelectVal !== '') {
-        // 特定日付
-        const targetDay = parseInt(daySelectVal, 10);
-        rows = rows.filter(r => r.date.getDate() === targetDay);
-    }
-    // 空の場合は全日表示
+    // 3. 抽出フィルタ
+    rows = filterEntriesBySelectedDay(rows);
 
     // 4. ソートして配列に戻す
     rows.sort((a, b) => a.date - b.date);
@@ -902,8 +1238,9 @@ function getFilteredRows() {
 // グラフ更新
 // ==========================================
 export function updateGraph() {
-    if (!isDailyMode && !lastFetchedData) return;
     if (isDailyMode && !dailyModeData) return;
+    if (isMonthlyMode && !monthlyModeData) return;
+    if (!isDailyMode && !isMonthlyMode && !lastFetchedData) return;
     if (clearGraphZoomForActiveModal) clearGraphZoomForActiveModal(false);
     document.getElementById('mf-no-data-msg').style.display = 'none';
 
@@ -916,21 +1253,186 @@ export function updateGraph() {
         return;
     }
 
-    const labels = isDailyMode
-        ? rows.map(r => {
-            const d = parseLocalDate(r[0]);
-            return `${d.getMonth() + 1}/${d.getDate()}`;
-        })
-        : rows.map(r => r[0]);
+    const comparisonChecked = document.getElementById('mf-chart-year-compare-check')?.checked;
+    const dailyComparisonEnabled = isDailyMode && comparisonChecked && dailyComparisonData;
+    const monthlyComparisonEnabled = isMonthlyMode && comparisonChecked && monthlyComparisonData;
+    const rollingComparisonEnabled = !isDailyMode && !isMonthlyMode && comparisonChecked && isRollingYearSelection();
+    const yearComparison = dailyComparisonEnabled
+        ? buildDailyYearComparison(rows, getSortedDailyRows(dailyComparisonData))
+        : monthlyComparisonEnabled
+            ? buildMonthlyYearComparison(
+                rows,
+                getYearRowsByExtraction(monthlyComparisonData, monthlyModeYear - 1)
+            )
+        : rollingComparisonEnabled
+            ? buildRollingYearComparison(rows, lastFetchedData.rows)
+            : null;
+    if (rollingComparisonEnabled && yearComparison) {
+        showGraphNotice(`直近1年: ${yearComparison.currentCount}件 / 前年同期間: ${yearComparison.previousCount}件`);
+    }
+    const labels = yearComparison
+        ? yearComparison.labels
+        : isDailyMode
+            ? rows.map(r => {
+                const d = parseLocalDate(r[0]);
+                return `${d.getMonth() + 1}/${d.getDate()}`;
+            })
+            : isMonthlyMode
+                ? rows.map(r => {
+                    const d = parseLocalDate(r[0]);
+                    return `${d.getMonth() + 1}/${d.getDate()}`;
+                })
+            : rows.map(r => r[0]);
     const isMA = document.getElementById('mf-chart-ma-check').checked;
     const maPeriod = parseInt(document.getElementById('mf-ma-period').value, 10);
 
-    drawChartCanvas(labels, rows, isMA, maPeriod);
+    drawChartCanvas(labels, rows, isMA, maPeriod, yearComparison);
 }
 
 // ==========================================
 // ヘルパー
 // ==========================================
+function getSortedDailyRows(data) {
+    if (!data) return [];
+    return data.rows.map(raw => ({
+        date: parseLocalDate(raw[0]),
+        raw
+    }))
+        .filter(item => !isNaN(item.date.getTime()))
+        .sort((a, b) => a.date - b.date)
+        .map(item => item.raw);
+}
+
+function isRollingYearSelection() {
+    const displayMode = document.querySelector('[data-display-mode].active')?.dataset.displayMode;
+    const activePeriod = document.querySelector('[data-period].active')?.dataset.period;
+    return displayMode === 'quick' && activePeriod === '1';
+}
+
+function getPreviousYearDate(date) {
+    const previous = new Date(date.getFullYear() - 1, date.getMonth(), date.getDate());
+    if (previous.getMonth() !== date.getMonth() || previous.getDate() !== date.getDate()) {
+        return null;
+    }
+    return previous;
+}
+
+function buildRollingYearComparison(currentRows, sourceRows) {
+    const parseRow = (row) => {
+        const date = parseLocalDate(row[0]);
+        const value = Number.parseInt(row[1], 10);
+        return isNaN(date.getTime()) ? null : {
+            date,
+            value: Number.isFinite(value) ? value : null
+        };
+    };
+
+    const sourceEntries = sourceRows.map(parseRow).filter(Boolean);
+    const valuesByDate = new Map(sourceEntries.map(entry => [formatDate(entry.date), entry.value]));
+    const latestByMonth = new Map();
+    sourceEntries.forEach(entry => {
+        const key = `${entry.date.getFullYear()}-${entry.date.getMonth() + 1}`;
+        const existing = latestByMonth.get(key);
+        if (!existing || entry.date > existing.date) latestByMonth.set(key, entry);
+    });
+
+    const currentEntries = currentRows.map(parseRow).filter(Boolean);
+    const daySelection = document.getElementById('mf-select-day')?.value ?? '';
+    const previousValues = currentEntries.map(entry => {
+        if (daySelection === 'last') {
+            return latestByMonth.get(`${entry.date.getFullYear() - 1}-${entry.date.getMonth() + 1}`)?.value ?? null;
+        }
+        const previousDate = getPreviousYearDate(entry.date);
+        return previousDate ? valuesByDate.get(formatDate(previousDate)) ?? null : null;
+    });
+
+    const firstDate = currentEntries[0]?.date;
+    const lastDate = currentEntries[currentEntries.length - 1]?.date;
+    const previousFirstDate = firstDate ? getPreviousYearDate(firstDate) : null;
+    const previousLastDate = lastDate ? getPreviousYearDate(lastDate) : null;
+    const formatPeriod = (start, end, fallback) => start && end
+        ? `${formatGraphDateLabel(start)}〜${formatGraphDateLabel(end)}`
+        : fallback;
+
+    return {
+        labels: currentEntries.map(entry => `${entry.date.getMonth() + 1}/${entry.date.getDate()}`),
+        currentValues: currentEntries.map(entry => entry.value),
+        previousValues,
+        currentLabel: formatPeriod(firstDate, lastDate, '直近1年'),
+        previousLabel: formatPeriod(previousFirstDate, previousLastDate, '前年同期間'),
+        currentCount: currentEntries.filter(entry => entry.value !== null).length,
+        previousCount: previousValues.filter(value => value !== null).length,
+        showAllDataLabels: currentEntries.length <= 20,
+        alternateDataLabels: true,
+        title: '資産推移（1年・前年比較）'
+    };
+}
+
+function buildMonthlyYearComparison(currentRows, previousRows) {
+    const parseRows = rows => rows.map(row => {
+        const date = parseLocalDate(row[0]);
+        const value = Number.parseInt(row[1], 10);
+        return Number.isNaN(date.getTime()) ? null : {
+            date,
+            value: Number.isFinite(value) ? value : null
+        };
+    }).filter(Boolean);
+
+    const currentEntries = parseRows(currentRows);
+    const previousEntries = parseRows(previousRows);
+    const daySelection = document.getElementById('mf-select-day')?.value ?? '';
+    const keyForDate = date => daySelection === 'last'
+        ? `${date.getMonth() + 1}`
+        : `${date.getMonth() + 1}-${date.getDate()}`;
+    const previousValuesByDate = new Map(previousEntries.map(entry => [keyForDate(entry.date), entry.value]));
+    const previousValues = currentEntries.map(entry => previousValuesByDate.get(keyForDate(entry.date)) ?? null);
+
+    return {
+        labels: currentEntries.map(entry => `${entry.date.getMonth() + 1}/${entry.date.getDate()}`),
+        currentValues: currentEntries.map(entry => entry.value),
+        previousValues,
+        currentLabel: `${monthlyModeYear}年`,
+        previousLabel: `${monthlyModeYear - 1}年`,
+        currentCount: currentEntries.filter(entry => entry.value !== null).length,
+        previousCount: previousValues.filter(value => value !== null).length,
+        showAllDataLabels: currentEntries.length <= 20,
+        alternateDataLabels: true,
+        title: `資産推移（${monthlyModeYear}年・前年比較）`
+    };
+}
+
+function buildDailyYearComparison(currentRows, previousRows) {
+    const valuesByDay = (rows) => {
+        const values = new Map();
+        rows.forEach(row => {
+            const date = parseLocalDate(row[0]);
+            if (isNaN(date.getTime())) return;
+            const parsedValue = parseInt(row[1] || 0, 10);
+            values.set(date.getDate(), Number.isFinite(parsedValue) ? parsedValue : null);
+        });
+        return values;
+    };
+
+    const currentValuesByDay = valuesByDay(currentRows);
+    const previousValuesByDay = valuesByDay(previousRows);
+    const currentMonthDays = new Date(dailyModeYear, dailyModeMonth, 0).getDate();
+    const previousMonthDays = new Date(dailyModeYear - 1, dailyModeMonth, 0).getDate();
+    const dayCount = Math.max(currentMonthDays, previousMonthDays);
+    const days = Array.from({ length: dayCount }, (_, index) => index + 1);
+
+    return {
+        labels: days.map(day => `${day}日`),
+        currentValues: days.map(day => currentValuesByDay.get(day) ?? null),
+        previousValues: days.map(day => previousValuesByDay.get(day) ?? null),
+        currentLabel: `${dailyModeYear}年${dailyModeMonth}月`,
+        previousLabel: `${dailyModeYear - 1}年${dailyModeMonth}月`,
+        currentCount: currentRows.length,
+        previousCount: previousRows.length,
+        showAllDataLabels: true,
+        alternateDataLabels: false
+    };
+}
+
 function colorToRgbObj(color) {
     const hexMatch = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(color || '');
     if (hexMatch) {
@@ -976,7 +1478,7 @@ function colorToRgbObj(color) {
 function calcMovingAverage(data, period) {
     const result = [];
     for (let i = 0; i < data.length; i++) {
-        if (i < period - 1) {
+        if (i < period - 1 || data[i] === null || data[i] === undefined) {
             result.push(null);
         } else {
             let sum = 0;
@@ -996,7 +1498,7 @@ function calcMovingAverage(data, period) {
 // ==========================================
 // グラフ描画
 // ==========================================
-function drawChartCanvas(labels, rows, isMA = false, maPeriod = 12) {
+function drawChartCanvas(labels, rows, isMA = false, maPeriod = 12, yearComparison = null) {
     if (globalChart) globalChart.destroy();
     const ctx = document.getElementById('mf-chart').getContext('2d');
 
@@ -1012,18 +1514,42 @@ function drawChartCanvas(labels, rows, isMA = false, maPeriod = 12) {
     gradient.addColorStop(0, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.4)`);
     gradient.addColorStop(1, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.0)`);
 
-    const actualData = rows.map(r => parseInt(r[1] || 0, 10));
+    const actualData = yearComparison
+        ? yearComparison.currentValues
+        : rows.map(r => parseInt(r[1] || 0, 10));
 
     datasets.push({
-        label: '資産合計',
+        label: yearComparison ? yearComparison.currentLabel : '資産合計',
         data: actualData,
         backgroundColor: gradient,
         borderColor: currentTheme.color1,
         borderWidth: 3,
         fill: true,
-        pointRadius: rows.length > 50 ? 0 : 4,
-        pointHoverRadius: 6
+        pointRadius: labels.length > 50 ? 0 : 4,
+        pointHoverRadius: 6,
+        pointStyle: 'circle',
+        spanGaps: Boolean(yearComparison),
+        dataLabelOffset: -14,
+        dataLabelAlternateOffset: -30
     });
+
+    if (yearComparison) {
+        datasets.push({
+            label: yearComparison.previousLabel,
+            data: yearComparison.previousValues,
+            backgroundColor: 'transparent',
+            borderColor: currentTheme.color2,
+            borderWidth: 3,
+            borderDash: [7, 4],
+            fill: false,
+            pointRadius: labels.length > 50 ? 0 : 4,
+            pointHoverRadius: 6,
+            pointStyle: 'rectRot',
+            spanGaps: true,
+            dataLabelOffset: 16,
+            dataLabelAlternateOffset: 32
+        });
+    }
 
     if (isMA) {
         const maData = calcMovingAverage(actualData, maPeriod);
@@ -1047,7 +1573,9 @@ function drawChartCanvas(labels, rows, isMA = false, maPeriod = 12) {
             const { ctx, data } = chart;
             const MAX_LABELS = 20;
             const totalPoints = data.labels.length;
-            const skipInterval = totalPoints <= MAX_LABELS ? 1 : Math.ceil(totalPoints / MAX_LABELS);
+            const skipInterval = yearComparison?.showAllDataLabels || totalPoints <= MAX_LABELS
+                ? 1
+                : Math.ceil(totalPoints / MAX_LABELS);
 
             ctx.save();
             ctx.textAlign = 'center';
@@ -1075,9 +1603,13 @@ function drawChartCanvas(labels, rows, isMA = false, maPeriod = 12) {
                     else if (absVal >= 10000) text = (value / 10000).toFixed(0) + '万';
                     else text = value.toLocaleString();
 
-                    const { x, y } = element.tooltipPosition();
+                    const { x } = element.tooltipPosition();
                     const color = dataset.borderColor instanceof Array ? dataset.borderColor[index] : dataset.borderColor || textColor;
-                    const labelY = element.y - 14;
+                    const useAlternateOffset = yearComparison?.alternateDataLabels && index % 2 === 1;
+                    const labelOffset = useAlternateOffset
+                        ? dataset.dataLabelAlternateOffset ?? dataset.dataLabelOffset ?? -14
+                        : dataset.dataLabelOffset ?? -14;
+                    const labelY = element.y + labelOffset;
 
                     // Halo Effect
                     ctx.save();
@@ -1123,14 +1655,19 @@ function drawChartCanvas(labels, rows, isMA = false, maPeriod = 12) {
                 }
             },
             layout: {
-                padding: { top: 20, bottom: 0, right: 40 }
+                padding: { top: yearComparison?.alternateDataLabels ? 40 : 20, bottom: 0, right: 40 }
             },
             plugins: {
                 title: {
                     display: true,
                     text: (() => {
+                        if (yearComparison) {
+                            return yearComparison.title ||
+                                `資産推移 ─ ${yearComparison.currentLabel} / ${yearComparison.previousLabel}（前年比較）`;
+                        }
                         if (isMA) return `資産推移（${maPeriod}ヶ月移動平均）`;
                         if (isDailyMode) return `資産推移 ─ ${dailyModeYear}年${dailyModeMonth}月（日次）`;
+                        if (isMonthlyMode) return `資産推移 ─ ${monthlyModeYear}年（月次）`;
                         return '資産推移（合計）';
                     })(),
                     font: { size: 16, weight: 'bold' },
@@ -1164,7 +1701,6 @@ function drawChartCanvas(labels, rows, isMA = false, maPeriod = 12) {
                     labels: {
                         color: textColor,
                         usePointStyle: true,
-                        pointStyle: 'circle',
                         padding: 16,
                         font: { size: 11 }
                     }
@@ -1228,7 +1764,9 @@ function copyGraphImage() {
 }
 
 function copyGraphData() {
-    const currentData = isDailyMode ? dailyModeData : lastFetchedData;
+    const currentData = isDailyMode
+        ? dailyModeData
+        : isMonthlyMode ? monthlyModeData : lastFetchedData;
     if (!currentData) return;
     const filteredRows = getFilteredRows().reverse();
     if (filteredRows.length === 0) {

@@ -42,13 +42,16 @@ async function setCachedValue(key, value) {
 // ==========================================
 // データ取得ロジック (共通)
 // ==========================================
-export async function fetchData(years, onProgress) {
+export async function fetchData(years, onProgress, options = {}) {
     const operation = beginOperation();
     if (!operation) return null;
 
     try {
         const maxYears = years === 'all' ? 20 : parseInt(years, 10);
-        const totalMonths = maxYears * 12;
+        const additionalMonths = Number.isInteger(options.additionalMonths) && options.additionalMonths > 0
+            ? options.additionalMonths
+            : 0;
+        const totalMonths = maxYears * 12 + additionalMonths;
 
         const now = new Date();
         let targetDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
@@ -140,62 +143,119 @@ export async function fetchData(years, onProgress) {
 // ==========================================
 // 特定月のデータ取得（日次モード用）
 // ==========================================
+async function fetchMonthlyDataInternal(year, month) {
+    // 対象月の月末日を計算
+    const lastDay = new Date(year, month, 0); // monthは1-indexed
+    const dateStr = formatDate(lastDay);
+    const cacheKey = `mf_daily_${year}_${month}`;
+
+    // キャッシュチェック（当月以外はキャッシュ可能）
+    const now = new Date();
+    const isCurrentMonth = year === now.getFullYear() && month === (now.getMonth() + 1);
+
+    if (!isCurrentMonth) {
+        const cached = await getCachedValue(cacheKey);
+        if (cached) {
+            try {
+                return JSON.parse(cached);
+            } catch (e) { /* ignore */ }
+        }
+    }
+
+    const url = `https://moneyforward.com/bs/history/list/${dateStr}/monthly/csv`;
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    const text = await readBlobAsText(blob, 'Shift_JIS');
+    const rows = parseCSV(text);
+
+    if (rows.length <= 1) return null;
+
+    const headers = rows[0];
+    let dataRows = rows.slice(1);
+
+    // 対象月のデータだけにフィルタリング
+    dataRows = dataRows.filter(r => {
+        const d = parseLocalDate(r[0]);
+        return d.getFullYear() === year && (d.getMonth() + 1) === month;
+    });
+
+    // 日付順ソート（古い順）
+    dataRows.sort((a, b) => parseLocalDate(a[0]) - parseLocalDate(b[0]));
+
+    const result = { headers, rows: dataRows };
+
+    // 当月以外はキャッシュ保存
+    if (!isCurrentMonth) {
+        try {
+            await setCachedValue(cacheKey, JSON.stringify(result));
+        } catch (e) { console.warn('Cache storage failed', e); }
+    }
+
+    return result;
+}
+
 export async function fetchMonthlyData(year, month) {
     const operation = beginOperation();
     if (!operation) return null;
 
     try {
-        // 対象月の月末日を計算
-        const lastDay = new Date(year, month, 0); // monthは1-indexed
-        const dateStr = formatDate(lastDay);
-        const cacheKey = `mf_daily_${year}_${month}`;
-
-        // キャッシュチェック（当月以外はキャッシュ可能）
-        const now = new Date();
-        const isCurrentMonth = year === now.getFullYear() && month === (now.getMonth() + 1);
-
-        if (!isCurrentMonth) {
-            const cached = await getCachedValue(cacheKey);
-            if (cached) {
-                try {
-                    return JSON.parse(cached);
-                } catch (e) { /* ignore */ }
-            }
-        }
-
-        const url = `https://moneyforward.com/bs/history/list/${dateStr}/monthly/csv`;
-        const res = await fetch(url);
-        if (!res.ok) return null;
-        const blob = await res.blob();
-        const text = await readBlobAsText(blob, 'Shift_JIS');
-        const rows = parseCSV(text);
-
-        if (rows.length <= 1) return null;
-
-        const headers = rows[0];
-        let dataRows = rows.slice(1);
-
-        // 対象月のデータだけにフィルタリング
-        dataRows = dataRows.filter(r => {
-            const d = parseLocalDate(r[0]);
-            return d.getFullYear() === year && (d.getMonth() + 1) === month;
-        });
-
-        // 日付順ソート（古い順）
-        dataRows.sort((a, b) => parseLocalDate(a[0]) - parseLocalDate(b[0]));
-
-        const result = { headers, rows: dataRows };
-
-        // 当月以外はキャッシュ保存
-        if (!isCurrentMonth) {
-            try {
-                await setCachedValue(cacheKey, JSON.stringify(result));
-            } catch (e) { console.warn('Cache storage failed', e); }
-        }
-
-        return result;
+        return await fetchMonthlyDataInternal(year, month);
     } catch (e) {
         console.error('fetchMonthlyData error:', e);
+        return null;
+    } finally {
+        endOperation(operation);
+    }
+}
+
+// ==========================================
+// 指定年の月別データ取得（月次モード用）
+// ==========================================
+export async function fetchYearData(year, onProgress) {
+    const operation = beginOperation();
+    if (!operation) return null;
+
+    try {
+        const targetYear = Number.parseInt(year, 10);
+        if (!Number.isInteger(targetYear)) return null;
+
+        const now = new Date();
+        const lastMonth = targetYear === now.getFullYear()
+            ? now.getMonth() + 1
+            : targetYear < now.getFullYear() ? 12 : 0;
+        if (lastMonth === 0) return null;
+
+        const months = Array.from({ length: lastMonth }, (_, index) => index + 1);
+        const results = [];
+        const BATCH_SIZE = 6;
+
+        for (let i = 0; i < months.length; i += BATCH_SIZE) {
+            const batch = months.slice(i, i + BATCH_SIZE);
+            const batchResults = await Promise.all(batch.map(async month => {
+                try {
+                    return await fetchMonthlyDataInternal(targetYear, month);
+                } catch {
+                    return null;
+                }
+            }));
+            results.push(...batchResults.filter(Boolean));
+            if (onProgress) {
+                onProgress(Math.round((Math.min(i + BATCH_SIZE, months.length) / months.length) * 100));
+            }
+            await new Promise(resolve => setTimeout(resolve, 50));
+        }
+
+        const rows = results.flatMap(result => result.rows);
+        if (rows.length === 0) return null;
+
+        rows.sort((a, b) => parseLocalDate(b[0]) - parseLocalDate(a[0]));
+        return {
+            headers: results.find(result => result.headers?.length)?.headers || [],
+            rows: unique(rows)
+        };
+    } catch (e) {
+        console.error('fetchYearData error:', e);
         return null;
     } finally {
         endOperation(operation);
